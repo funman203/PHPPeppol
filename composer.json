@@ -50,11 +50,8 @@
     "scripts": {
         "test": "phpunit",
         "phpstan": "phpstan analyse src --level=8",
-        "install-schematron": [
-            "php -r \"require 'vendor/autoload.php'; $v = new Peppol\\Validation\\SchematronValidator(); $v->installIsoSchematronXslt(); $v->installSchematronFiles();\"",
-            "@php -r \"echo '\\n✅ Fichiers Schematron installés\\n';\""
-        ],
-        "clear-cache": "php -r \"require 'vendor/autoload.php'; (new Peppol\\Validation\\SchematronValidator())->clearCache();\""
+        "install-schematron": "@php bin/install-schematron.php",
+        "schematron-cache-clear": "php -r \"require 'vendor/autoload.php'; (new Peppol\\Validation\\SchematronValidator())->clearCache();\""
     },
     "config": {
         "sort-packages": true,

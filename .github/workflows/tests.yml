@@ -44,7 +44,7 @@ jobs:
     
     - name: Install Schematron files
       run: |
-        composer install-schematron || echo "⚠️ Schematron installation failed, continuing..."
+        php bin/install-schematron.php || echo "⚠️ Schematron installation failed, continuing..."
       continue-on-error: true
     
     - name: Run PHPUnit tests
@@ -74,7 +74,14 @@ jobs:
       run: composer install --prefer-dist --no-progress
     
     - name: Install Schematron files
-      run: composer install-schematron
+      run: |
+        composer install-schematron || echo "⚠️ Schematron installation failed, continuing..."
+      continue-on-error: false
+    
+    - name: Verify Schematron installation
+      run: |
+        ls -la resources/schematron/ || echo "Schematron directory not found"
+        ls -la resources/iso-schematron/ || echo "ISO Schematron directory not found"
       continue-on-error: true
     
     - name: Create output directories

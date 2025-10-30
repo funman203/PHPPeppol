@@ -7,30 +7,38 @@
  * Ce script télécharge et installe :
  * - Les fichiers Schematron officiels UBL.BE, EN 16931, Peppol
  * - Les feuilles de style XSLT ISO Schematron
+ * 
+ * Usage: php bin/install-schematron.php
  */
 
 declare(strict_types=1);
 
-// Couleurs
+// Couleurs (désactivées si pas de TTY)
+$isTty = function_exists('posix_isatty') && posix_isatty(STDOUT);
 const GREEN = "\033[32m";
 const RED = "\033[31m";
 const YELLOW = "\033[33m";
+const BLUE = "\033[34m";
 const RESET = "\033[0m";
 
 function printSuccess(string $msg): void {
-    echo GREEN . "✅ {$msg}" . RESET . "\n";
+    global $isTty;
+    echo ($isTty ? GREEN : '') . "✅ {$msg}" . ($isTty ? RESET : '') . "\n";
 }
 
 function printError(string $msg): void {
-    echo RED . "❌ {$msg}" . RESET . "\n";
+    global $isTty;
+    echo ($isTty ? RED : '') . "❌ {$msg}" . ($isTty ? RESET : '') . "\n";
 }
 
 function printWarning(string $msg): void {
-    echo YELLOW . "⚠️  {$msg}" . RESET . "\n";
+    global $isTty;
+    echo ($isTty ? YELLOW : '') . "⚠️  {$msg}" . ($isTty ? RESET : '') . "\n";
 }
 
 function printInfo(string $msg): void {
-    echo "ℹ️  {$msg}\n";
+    global $isTty;
+    echo ($isTty ? BLUE : '') . "ℹ️  {$msg}" . ($isTty ? RESET : '') . "\n";
 }
 
 echo "\n=== Installation des fichiers Schematron ===\n\n";
