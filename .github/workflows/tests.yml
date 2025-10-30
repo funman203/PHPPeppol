@@ -140,7 +140,7 @@ jobs:
         php -r "
         require 'vendor/autoload.php';
         \$invoice = new PeppolInvoice('CI-TEST-001', date('Y-m-d'));
-        \$invoice->setSellerFromData('Test', 'BE0123456789', 'Street 1', '1000', 'Brussels', 'BE', null, null, '0106', '0123456789');
+        \$invoice->setSellerFromData('Test', 'BE0477472701', 'Street 1', '1000', 'Brussels', 'BE', null, null, '0106', '0123456789');
         \$invoice->setBuyerFromData('Buyer', 'Street 2', '1050', 'Brussels', 'BE', 'BE0987654321', null, '9925', 'BE0987654321');
         \$invoice->setBuyerReference('REF-001');
         \$invoice->setDueDate(date('Y-m-d', strtotime('+30 days')));

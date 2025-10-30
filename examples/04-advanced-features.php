@@ -45,7 +45,7 @@ $invoice1->setBuyerFromData(
     countryCode: 'BE',
     vatId: 'BE0477472701',
     electronicAddressScheme: '9925',
-    electronicAddress: 'BE0477472701'
+    electronicAddress: '0477472701'
 );
 
 $invoice1->setBuyerReference('REF-RESTO-2025');
@@ -116,13 +116,13 @@ $invoice2 = new PeppolInvoice('FAC-REF-002', '2025-10-30');
 
 $invoice2->setSellerFromData(
     name: 'Services Pro SPRL',
-    vatId: 'BE0333333333',
+    vatId: 'BE0477472701',
     streetName: 'Avenue Pro 20',
     postalZone: '1060',
     cityName: 'Bruxelles',
     countryCode: 'BE',
     electronicAddressScheme: '0106',
-    electronicAddress: '0333333333'
+    electronicAddress: '0477472701'
 );
 
 $invoice2->setBuyerFromData(
@@ -189,13 +189,13 @@ $invoice3 = new PeppolInvoice('FAC-EXPORT-003', '2025-10-30');
 
 $invoice3->setSellerFromData(
     name: 'Global Export SPRL',
-    vatId: 'BE0444444444',
+    vatId: 'BE0477472701',
     streetName: 'Port de Bruxelles 1',
     postalZone: '1000',
     cityName: 'Bruxelles',
     countryCode: 'BE',
     electronicAddressScheme: '0106',
-    electronicAddress: '0444444444'
+    electronicAddress: '0477472701'
 );
 
 $invoice3->setBuyerFromData(
@@ -251,13 +251,13 @@ $invoice4 = new PeppolInvoice(
 
 $invoice4->setSellerFromData(
     name: 'Construction SPRL',
-    vatId: 'BE0555555555',
+    vatId: 'BE0477472701',
     streetName: 'Rue du Chantier 30',
     postalZone: '1080',
     cityName: 'Bruxelles',
     countryCode: 'BE',
     electronicAddressScheme: '0106',
-    electronicAddress: '0555555555'
+    electronicAddress: '0477472701'
 );
 
 $invoice4->setBuyerFromData(
@@ -266,9 +266,9 @@ $invoice4->setBuyerFromData(
     postalZone: '1090',
     cityName: 'Bruxelles',
     countryCode: 'BE',
-    vatId: 'BE0666666666',
+    vatId: 'BE0477472701',
     electronicAddressScheme: '9925',
-    electronicAddress: 'BE0666666666'
+    electronicAddress: '0477472701'
 );
 
 $invoice4->setBuyerReference('PROJET-2025-XYZ');
@@ -318,13 +318,13 @@ function createAndValidateInvoice(): array
         try {
             $invoice->setSellerFromData(
                 name: 'Test SPRL',
-                vatId: 'BE0777777777',
+                vatId: 'BE0477472701',
                 streetName: 'Rue Test 1',
                 postalZone: '1000',
                 cityName: 'Bruxelles',
                 countryCode: 'BE',
                 electronicAddressScheme: '0106',
-                electronicAddress: '0777777777'
+                electronicAddress: '0477472701'
             );
             $results[] = "✅ Vendeur configuré";
         } catch (Exception $e) {
@@ -340,9 +340,9 @@ function createAndValidateInvoice(): array
                 postalZone: '1050',
                 cityName: 'Bruxelles',
                 countryCode: 'BE',
-                vatId: 'BE0888888888',
+                vatId: 'BE0477472701',
                 electronicAddressScheme: '9925',
-                electronicAddress: 'BE0888888888'
+                electronicAddress: '0477472701'
             );
             $results[] = "✅ Acheteur configuré";
         } catch (Exception $e) {
