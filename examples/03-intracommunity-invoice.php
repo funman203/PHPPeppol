@@ -37,8 +37,7 @@ $invoice->setSellerFromData(
     companyId: '0477.472.701',
     email: 'export@international.be',
     electronicAddressScheme: '0106', // KBO-BCE
-    electronicAddress: '0477472701',
-    telephone: '+32 3 123 45 67'
+    electronicAddress: '0477472701'
 );
 
 // ========== ACHETEUR ALLEMAND ==========

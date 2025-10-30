@@ -249,13 +249,13 @@ function createExampleInvoice(string $path): void
     
     $invoice->setSellerFromData(
         name: 'Exemple SPRL',
-        vatId: 'BE0999999999',
+        vatId: 'BE0477472701',
         streetName: 'Rue Exemple 1',
         postalZone: '1000',
         cityName: 'Bruxelles',
         countryCode: 'BE',
         electronicAddressScheme: '0106',
-        electronicAddress: '0999999999'
+        electronicAddress: '0477472701'
     );
     
     $invoice->setBuyerFromData(
@@ -264,9 +264,9 @@ function createExampleInvoice(string $path): void
         postalZone: '1050',
         cityName: 'Bruxelles',
         countryCode: 'BE',
-        vatId: 'BE0888888888',
+        vatId: 'BE0477472701',
         electronicAddressScheme: '9925',
-        electronicAddress: 'BE0888888888'
+        electronicAddress: 'BE0477472701'
     );
     
     $invoice->setBuyerReference('REF-EXEMPLE-001');

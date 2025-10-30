@@ -1,5 +1,5 @@
 {
-    "name": "votre-namespace/peppol-invoice",
+    "name": "funman203/phppeppol",
     "description": "Bibliothèque PHP pour créer et valider des factures électroniques conformes UBL.BE, EN 16931 et Peppol BIS",
     "type": "library",
     "keywords": [
