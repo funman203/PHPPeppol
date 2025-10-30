@@ -29,15 +29,15 @@ echo "Configuration du vendeur (Belgique)...\n";
 
 $invoice->setSellerFromData(
     name: 'Export International SPRL',
-    vatId: 'BE0123456789',
+    vatId: 'BE0477472701',
     streetName: 'Quai du Commerce 15',
     postalZone: '2000',
     cityName: 'Anvers',
     countryCode: 'BE',
-    companyId: '0123.456.789',
+    companyId: '0477.472.701',
     email: 'export@international.be',
     electronicAddressScheme: '0106', // KBO-BCE
-    electronicAddress: '0123456789',
+    electronicAddress: '0477472701',
     telephone: '+32 3 123 45 67'
 );
 

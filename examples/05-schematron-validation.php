@@ -39,13 +39,13 @@ $invoice = new PeppolInvoice('FAC-SCH-001', '2025-10-30');
 // Configuration complète pour UBL.BE
 $invoice->setSellerFromData(
     name: 'Test Company SPRL',
-    vatId: 'BE0123456789',
+    vatId: 'BE0477472701',
     streetName: 'Rue du Test 1',
     postalZone: '1000',
     cityName: 'Bruxelles',
     countryCode: 'BE',
     electronicAddressScheme: '0106',
-    electronicAddress: '0123456789'
+    electronicAddress: '0477472701'
 );
 
 $invoice->setBuyerFromData(

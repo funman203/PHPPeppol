@@ -24,15 +24,15 @@ $invoice = new PeppolInvoice(
 
 $invoice->setSellerFromData(
     name: 'ACME SPRL',
-    vatId: 'BE0123456789',
+    vatId: 'BE0477472701',
     streetName: 'Rue de la Loi 123',
     postalZone: '1000',
     cityName: 'Bruxelles',
     countryCode: 'BE',
-    companyId: '0123.456.789',
+    companyId: '0477.472.701',
     email: 'facturation@acme.be',
     electronicAddressScheme: '0106', // KBO-BCE Belgique (obligatoire UBL.BE)
-    electronicAddress: '0123456789'
+    electronicAddress: '0477472701'
 );
 
 // ========== DÉFINITION DU CLIENT ==========
