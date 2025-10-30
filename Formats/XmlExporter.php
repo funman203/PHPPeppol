@@ -527,4 +527,30 @@ class XmlExporter
             return false;
         }
     }
+
+
+    /**
+     * @var bool Active/désactive la validation Schematron
+     */
+    private bool $enableSchematronValidation = false;
+    
+    /**
+     * @var array<string> Niveaux de validation Schematron à appliquer
+     */
+    private array $schematronLevels = ['ublbe', 'en16931'];
+    
+    /**
+     * Active la validation Schematron lors de l'export
+     * 
+     * @param bool $enable
+     * @param array<string> $levels Niveaux de validation ['ublbe', 'en16931', 'peppol']
+     * @return self
+     */
+    public function enableSchematronValidation(bool $enable = true, array $levels = ['ublbe', 'en16931']): self
+    {
+        $this->enableSchematronValidation = $enable;
+        $this->schematronLevels = $levels;
+        return $this;
+    }
+
 }
