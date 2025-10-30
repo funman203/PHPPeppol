@@ -33,12 +33,12 @@ class SchematronValidator
     private bool $useCache;
     
     /**
-     * @var array<string> URLs des fichiers Schematron UBL.BE officiels
+     * @var array<string> URLs des fichiers Schematron officiels
      */
     private const SCHEMATRON_URLS = [
-        'ublbe' => 'https://www.nbb.be/doc/dq/e_invoice/UBLBE_Invoice-1.0.sch',
-        'en16931' => 'https://www.nbb.be/doc/dq/e_invoice/EN16931_UBL-1.3.sch',
-        'peppol' => 'https://www.nbb.be/doc/dq/e_invoice/PEPPOL_CIUS-UBL-1.0.sch'
+        'ublbe' => 'https://www.ubl.be/wp-content/uploads/2024/07/GLOBALUBL.BE-V1.31.zip',
+        'en16931' => 'https://raw.githubusercontent.com/ConnectingEurope/eInvoicing-EN16931/master/schematrons/EN16931-UBL-validation.sch',
+        'peppol' => 'https://raw.githubusercontent.com/OpenPEPPOL/peppol-bis-invoice-3/master/rules/sch/PEPPOL-EN16931-UBL.sch'
     ];
     
     /**
@@ -184,8 +184,67 @@ class SchematronValidator
             @mkdir($dir, 0755, true);
         }
         
+        // Cas spécial pour UBL.BE (fichier ZIP)
+        if ($level === 'ublbe') {
+            return $this->downloadAndExtractUblBe($url, $destination);
+        }
+        
         // Télécharger le fichier
         $content = @file_get_contents($url);
+        if ($content === false) {
+            return false;
+        }
+        
+        return file_put_contents($destination, $content) !== false;
+    }
+    
+    /**
+     * Télécharge et extrait le ZIP UBL.BE
+     * 
+     * @param string $url
+     * @param string $destination
+     * @return bool
+     */
+    private function downloadAndExtractUblBe(string $url, string $destination): bool
+    {
+        // Télécharger le ZIP
+        $zipContent = @file_get_contents($url);
+        if ($zipContent === false) {
+            return false;
+        }
+        
+        // Sauvegarder temporairement le ZIP
+        $tempZip = sys_get_temp_dir() . '/ublbe_' . uniqid() . '.zip';
+        file_put_contents($tempZip, $zipContent);
+        
+        // Extraire le fichier Schematron
+        $zip = new \ZipArchive();
+        if ($zip->open($tempZip) !== true) {
+            @unlink($tempZip);
+            return false;
+        }
+        
+        // Chercher le fichier .sch dans le ZIP
+        $schematronFile = null;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $filename = $zip->getNameIndex($i);
+            if (preg_match('/UBLBE.*\.sch$/i', $filename)) {
+                $schematronFile = $filename;
+                break;
+            }
+        }
+        
+        if ($schematronFile === null) {
+            $zip->close();
+            @unlink($tempZip);
+            return false;
+        }
+        
+        // Extraire le fichier
+        $content = $zip->getFromName($schematronFile);
+        $zip->close();
+        @unlink($tempZip);
+        
         if ($content === false) {
             return false;
         }

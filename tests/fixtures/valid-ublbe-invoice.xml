@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" 
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" 
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+    
+    <!-- Document Header -->
+    <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+    <cbc:CustomizationID>urn:cen.eu:en16931:2017#conformant#urn:UBL.BE:1.0.0.20180214</cbc:CustomizationID>
+    <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+    <cbc:ID>INVOICE-2025-TEST-001</cbc:ID>
+    <cbc:IssueDate>2025-10-30</cbc:IssueDate>
+    <cbc:DueDate>2025-11-29</cbc:DueDate>
+    <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+    <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+    <cbc:BuyerReference>BUYER-REF-2025-001</cbc:BuyerReference>
+    
+    <!-- Order Reference -->
+    <cac:OrderReference>
+        <cbc:ID>ORDER-2025-001</cbc:ID>
+    </cac:OrderReference>
+    
+    <!-- Additional Documents (minimum 2 for UBL.BE) -->
+    <cac:AdditionalDocumentReference>
+        <cbc:ID>DOC-REF-1</cbc:ID>
+        <cbc:DocumentTypeCode>CommercialInvoice</cbc:DocumentTypeCode>
+        <cbc:DocumentDescription>Document de référence principal</cbc:DocumentDescription>
+    </cac:AdditionalDocumentReference>
+    
+    <cac:AdditionalDocumentReference>
+        <cbc:ID>DOC-REF-2</cbc:ID>
+        <cbc:DocumentTypeCode>GeneralTermsAndConditions</cbc:DocumentTypeCode>
+        <cbc:DocumentDescription>Conditions générales de vente</cbc:DocumentDescription>
+    </cac:AdditionalDocumentReference>
+    
+    <!-- Supplier Party -->
+    <cac:AccountingSupplierParty>
+        <cac:Party>
+            <cbc:EndpointID schemeID="0106">0123456789</cbc:EndpointID>
+            <cac:PartyIdentification>
+                <cbc:ID>0123456789</cbc:ID>
+            </cac:PartyIdentification>
+            <cac:PartyName>
+                <cbc:Name>Test Supplier SPRL</cbc:Name>
+            </cac:PartyName>
+            <cac:PostalAddress>
+                <cbc:StreetName>Rue du Commerce 123</cbc:StreetName>
+                <cbc:CityName>Bruxelles</cbc:CityName>
+                <cbc:PostalZone>1000</cbc:PostalZone>
+                <cac:Country>
+                    <cbc:IdentificationCode>BE</cbc:IdentificationCode>
+                </cac:Country>
+            </cac:PostalAddress>
+            <cac:PartyTaxScheme>
+                <cbc:CompanyID>BE0123456789</cbc:CompanyID>
+                <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                </cac:TaxScheme>
+            </cac:PartyTaxScheme>
+            <cac:PartyLegalEntity>
+                <cbc:RegistrationName>Test Supplier SPRL</cbc:RegistrationName>
+                <cbc:CompanyID>0123456789</cbc:CompanyID>
+            </cac:PartyLegalEntity>
+            <cac:Contact>
+                <cbc:ElectronicMail>contact@testsupplier.be</cbc:ElectronicMail>
+            </cac:Contact>
+        </cac:Party>
+    </cac:AccountingSupplierParty>
+    
+    <!-- Customer Party -->
+    <cac:AccountingCustomerParty>
+        <cac:Party>
+            <cbc:EndpointID schemeID="9925">BE0987654321</cbc:EndpointID>
+            <cac:PartyName>
+                <cbc:Name>Test Customer SA</cbc:Name>
+            </cac:PartyName>
+            <cac:PostalAddress>
+                <cbc:StreetName>Avenue Louise 456</cbc:StreetName>
+                <cbc:CityName>Bruxelles</cbc:CityName>
+                <cbc:PostalZone>1050</cbc:PostalZone>
+                <cac:Country>
+                    <cbc:IdentificationCode>BE</cbc:IdentificationCode>
+                </cac:Country>
+            </cac:PostalAddress>
+            <cac:PartyTaxScheme>
+                <cbc:CompanyID>BE0987654321</cbc:CompanyID>
+                <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                </cac:TaxScheme>
+            </cac:PartyTaxScheme>
+            <cac:PartyLegalEntity>
+                <cbc:RegistrationName>Test Customer SA</cbc:RegistrationName>
+            </cac:PartyLegalEntity>
+        </cac:Party>
+    </cac:AccountingCustomerParty>
+    
+    <!-- Payment Means -->
+    <cac:PaymentMeans>
+        <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+        <cbc:PaymentID>+++123/4567/89012+++</cbc:PaymentID>
+        <cac:PayeeFinancialAccount>
+            <cbc:ID>BE68539007547034</cbc:ID>
+            <cac:FinancialInstitutionBranch>
+                <cbc:ID>GKCCBEBB</cbc:ID>
+            </cac:FinancialInstitutionBranch>
+        </cac:PayeeFinancialAccount>
+    </cac:PaymentMeans>
+    
+    <!-- Tax Total -->
+    <cac:TaxTotal>
+        <cbc:TaxAmount currencyID="EUR">105.00</cbc:TaxAmount>
+        <cac:TaxSubtotal>
+            <cbc:TaxableAmount currencyID="EUR">500.00</cbc:TaxableAmount>
+            <cbc:TaxAmount currencyID="EUR">105.00</cbc:TaxAmount>
+            <cac:TaxCategory>
+                <cbc:ID>S</cbc:ID>
+                <cbc:Name>Taux standard</cbc:Name>
+                <cbc:Percent>21.00</cbc:Percent>
+                <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                </cac:TaxScheme>
+            </cac:TaxCategory>
+        </cac:TaxSubtotal>
+    </cac:TaxTotal>
+    
+    <!-- Legal Monetary Total -->
+    <cac:LegalMonetaryTotal>
+        <cbc:LineExtensionAmount currencyID="EUR">500.00</cbc:LineExtensionAmount>
+        <cbc:TaxExclusiveAmount currencyID="EUR">500.00</cbc:TaxExclusiveAmount>
+        <cbc:TaxInclusiveAmount currencyID="EUR">605.00</cbc:TaxInclusiveAmount>
+        <cbc:PayableAmount currencyID="EUR">605.00</cbc:PayableAmount>
+    </cac:LegalMonetaryTotal>
+    
+    <!-- Invoice Lines -->
+    <cac:InvoiceLine>
+        <cbc:ID>1</cbc:ID>
+        <cbc:InvoicedQuantity unitCode="HUR">5.00</cbc:InvoicedQuantity>
+        <cbc:LineExtensionAmount currencyID="EUR">500.00</cbc:LineExtensionAmount>
+        <cac:Item>
+            <cbc:Name>Prestation de conseil</cbc:Name>
+            <cbc:Description>Services de conseil en informatique - 5 heures</cbc:Description>
+            <cac:ClassifiedTaxCategory>
+                <cbc:ID>S</cbc:ID>
+                <cbc:Name>Taux standard</cbc:Name>
+                <cbc:Percent>21.00</cbc:Percent>
+                <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                </cac:TaxScheme>
+            </cac:ClassifiedTaxCategory>
+        </cac:Item>
+        <cac:Price>
+            <cbc:PriceAmount currencyID="EUR">100.00</cbc:PriceAmount>
+        </cac:Price>
+        <!-- UBL-BE-14: TaxTotal required at line level -->
+        <cac:TaxTotal>
+            <cbc:TaxAmount currencyID="EUR">105.00</cbc:TaxAmount>
+        </cac:TaxTotal>
+    </cac:InvoiceLine>
+    
+</Invoice>

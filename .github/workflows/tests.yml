@@ -1,0 +1,151 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        php-version: ['8.0', '8.1', '8.2', '8.3']
+    
+    name: PHP ${{ matrix.php-version }} Tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: dom, xml, xsl, zip
+        coverage: xdebug
+    
+    - name: Validate composer.json
+      run: composer validate --strict
+    
+    - name: Cache Composer packages
+      id: composer-cache
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-${{ matrix.php-version }}-
+    
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    
+    - name: Install Schematron files
+      run: composer install-schematron
+      continue-on-error: true
+    
+    - name: Run PHPUnit tests
+      run: vendor/bin/phpunit --coverage-text
+    
+    - name: Run PHPStan
+      run: vendor/bin/phpstan analyse src --level=8
+      continue-on-error: true
+  
+  validate-examples:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    name: Validate Examples
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: dom, xml, xsl, zip
+    
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    
+    - name: Install Schematron files
+      run: composer install-schematron
+      continue-on-error: true
+    
+    - name: Create output directories
+      run: |
+        mkdir -p examples/output
+        mkdir -p examples/data
+    
+    - name: Run Example 1 - Basic Invoice
+      run: php examples/01-basic-invoice.php
+      continue-on-error: true
+    
+    - name: Run Example 2 - Import XML
+      run: php examples/02-import-xml.php
+      continue-on-error: true
+    
+    - name: Run Example 3 - Intracommunity
+      run: php examples/03-intracommunity-invoice.php
+      continue-on-error: true
+    
+    - name: Run Example 4 - Advanced Features
+      run: php examples/04-advanced-features.php
+      continue-on-error: true
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: example-outputs
+        path: examples/output/
+
+  schematron-validation:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    name: Schematron Validation
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: dom, xml, xsl, zip
+    
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    
+    - name: Install Schematron files
+      run: composer install-schematron
+    
+    - name: Create test invoice
+      run: |
+        mkdir -p tests/fixtures
+        php -r "
+        require 'vendor/autoload.php';
+        \$invoice = new PeppolInvoice('CI-TEST-001', date('Y-m-d'));
+        \$invoice->setSellerFromData('Test', 'BE0123456789', 'Street 1', '1000', 'Brussels', 'BE', null, null, '0106', '0123456789');
+        \$invoice->setBuyerFromData('Buyer', 'Street 2', '1050', 'Brussels', 'BE', 'BE0987654321', null, '9925', 'BE0987654321');
+        \$invoice->setBuyerReference('REF-001');
+        \$invoice->setDueDate(date('Y-m-d', strtotime('+30 days')));
+        \$invoice->addLine('1', 'Product', 1.0, 'C62', 100.00, 'S', 21.0);
+        \$invoice->attachDocument(new Peppol\Models\AttachedDocument('d1.pdf', 'c1', 'application/pdf', 'd1'));
+        \$invoice->attachDocument(new Peppol\Models\AttachedDocument('d2.pdf', 'c2', 'application/pdf', 'd2'));
+        \$invoice->calculateTotals();
+        \$invoice->saveXml('tests/fixtures/test-invoice.xml');
+        "
+    
+    - name: Validate with Schematron
+      run: php bin/validate-invoice tests/fixtures/test-invoice.xml --schematron --level=ublbe,en16931
+      continue-on-error: true
+    
+    - name: Clear Schematron cache
+      run: composer clear-cache
