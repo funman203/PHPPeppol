@@ -42,12 +42,25 @@ use Peppol\Validation\SchematronValidator;
 
 $validator = new SchematronValidator();
 
-// Télécharge automatiquement les fichiers Schematron officiels
-$results = $validator->installSchematronFiles();
+// Télécharge les XSLT ISO + fichiers Schematron officiels
+$isoResults = $validator->installIsoSchematronXslt();
+$schResults = $validator->installSchematronFiles();
 
-foreach ($results as $level => $success) {
+foreach ($isoResults as $file => $success) {
+    echo ($success ? '✅' : '❌') . " ISO: {$file}\n";
+}
+
+foreach ($schResults as $level => $success) {
     echo ($success ? '✅' : '❌') . " {$level}\n";
 }
+```
+
+**OU via script CLI** :
+
+```bash
+composer install-schematron
+# OU
+php bin/install-schematron.php
 ```
 
 ### Option 2: Installation manuelle

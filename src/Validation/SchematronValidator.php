@@ -368,8 +368,11 @@ class SchematronValidator
      */
     private function downloadIsoSchematronXslt(string $filename): bool
     {
-        $baseUrl = 'https://raw.githubusercontent.com/Schematron/schematron/master/trunk/schematron/code/';
-        $url = $baseUrl . $filename;
+        // Essayer plusieurs sources
+        $sources = [
+            'https://raw.githubusercontent.com/Schematron/schematron/master/trunk/schematron/code/' . $filename,
+            'https://raw.githubusercontent.com/schematron/schematron/2020-10-01/trunk/schematron/code/' . $filename,
+        ];
         
         $destination = __DIR__ . '/../../resources/iso-schematron/' . $filename;
         $dir = dirname($destination);
@@ -378,12 +381,47 @@ class SchematronValidator
             @mkdir($dir, 0755, true);
         }
         
-        $content = @file_get_contents($url);
-        if ($content === false) {
-            return false;
+        foreach ($sources as $url) {
+            $content = @file_get_contents($url, false, stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'user_agent' => 'PeppolInvoice/1.0'
+                ]
+            ]));
+            
+            if ($content !== false && !empty($content)) {
+                return file_put_contents($destination, $content) !== false;
+            }
         }
         
-        return file_put_contents($destination, $content) !== false;
+        return false;
+    }
+    
+    /**
+     * Installe tous les fichiers XSLT ISO Schematron nécessaires
+     * 
+     * @return array<string, bool>
+     */
+    public function installIsoSchematronXslt(): array
+    {
+        $files = [
+            'iso_dsdl_include.xsl',
+            'iso_abstract_expand.xsl',
+            'iso_svrl_for_xslt2.xsl'
+        ];
+        
+        $results = [];
+        foreach ($files as $file) {
+            $path = __DIR__ . '/../../resources/iso-schematron/' . $file;
+            
+            if (!file_exists($path)) {
+                $results[$file] = $this->downloadIsoSchematronXslt($file);
+            } else {
+                $results[$file] = true; // Déjà présent
+            }
+        }
+        
+        return $results;
     }
     
     /**
