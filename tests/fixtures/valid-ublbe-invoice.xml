@@ -51,14 +51,14 @@
                 </cac:Country>
             </cac:PostalAddress>
             <cac:PartyTaxScheme>
-                <cbc:CompanyID>BE0123456789</cbc:CompanyID>
+                <cbc:CompanyID>BE0477472701</cbc:CompanyID>
                 <cac:TaxScheme>
                     <cbc:ID>VAT</cbc:ID>
                 </cac:TaxScheme>
             </cac:PartyTaxScheme>
             <cac:PartyLegalEntity>
                 <cbc:RegistrationName>Test Supplier SPRL</cbc:RegistrationName>
-                <cbc:CompanyID>0123456789</cbc:CompanyID>
+                <cbc:CompanyID>0477472701</cbc:CompanyID>
             </cac:PartyLegalEntity>
             <cac:Contact>
                 <cbc:ElectronicMail>contact@testsupplier.be</cbc:ElectronicMail>
