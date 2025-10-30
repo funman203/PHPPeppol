@@ -129,13 +129,13 @@ class SchematronValidatorTest extends TestCase
         
         $invoice->setSellerFromData(
             name: 'Test Seller SPRL',
-            vatId: 'BE0123456789',
+            vatId: 'BE0477472701',
             streetName: 'Test Street 1',
             postalZone: '1000',
             cityName: 'Brussels',
             countryCode: 'BE',
             electronicAddressScheme: '0106',
-            electronicAddress: '0123456789'
+            electronicAddress: '0477472701'
         );
         
         $invoice->setBuyerFromData(
