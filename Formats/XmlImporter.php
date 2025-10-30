@@ -1,0 +1,395 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Peppol\Formats;
+
+use Peppol\Core\InvoiceBase;
+use Peppol\Standards\EN16931Invoice;
+use Peppol\Standards\UblBeInvoice;
+use Peppol\Models\Address;
+use Peppol\Models\ElectronicAddress;
+use Peppol\Models\Party;
+use Peppol\Models\InvoiceLine;
+use Peppol\Models\PaymentInfo;
+use Peppol\Models\AttachedDocument;
+
+/**
+ * Importateur XML UBL 2.1
+ * 
+ * Parse un document XML UBL 2.1 et crée une instance de facture
+ * 
+ * @package Peppol\Formats
+ * @author Votre Nom
+ * @version 1.0
+ */
+class XmlImporter
+{
+    /**
+     * Importe une facture depuis XML UBL
+     * 
+     * @param string $xmlContent Contenu XML ou chemin vers un fichier
+     * @param string|null $targetClass Classe cible (auto-détectée si null)
+     * @return InvoiceBase
+     * @throws \InvalidArgumentException
+     */
+    public static function fromUbl(string $xmlContent, ?string $targetClass = null): InvoiceBase
+    {
+        // Si c'est un chemin de fichier, on lit son contenu
+        if (file_exists($xmlContent)) {
+            $xmlContent = file_get_contents($xmlContent);
+            if ($xmlContent === false) {
+                throw new \InvalidArgumentException("Impossible de lire le fichier XML");
+            }
+        }
+        
+        // Désactivation des erreurs XML pour les gérer manuellement
+        libxml_use_internal_errors(true);
+        
+        $xml = new \DOMDocument();
+        if (!$xml->loadXML($xmlContent)) {
+            $errors = libxml_get_errors();
+            libxml_clear_errors();
+            throw new \InvalidArgumentException("XML invalide: " . ($errors[0]->message ?? 'Erreur inconnue'));
+        }
+        
+        // Création d'un XPath pour faciliter la navigation
+        $xpath = new \DOMXPath($xml);
+        $xpath->registerNamespace('ubl', 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2');
+        $xpath->registerNamespace('cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $xpath->registerNamespace('cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        
+        // Détection automatique du type de facture si non spécifié
+        if ($targetClass === null) {
+            $targetClass = self::detectInvoiceType($xpath);
+        }
+        
+        // Extraction des données de base
+        $invoiceNumber = self::getXPathValue($xpath, '//cbc:ID');
+        $issueDate = self::getXPathValue($xpath, '//cbc:IssueDate');
+        $invoiceTypeCode = self::getXPathValue($xpath, '//cbc:InvoiceTypeCode', '380');
+        $currencyCode = self::getXPathValue($xpath, '//cbc:DocumentCurrencyCode', 'EUR');
+        
+        if (empty($invoiceNumber) || empty($issueDate)) {
+            throw new \InvalidArgumentException("Le XML doit contenir au minimum un numéro de facture et une date d'émission");
+        }
+        
+        // Création de l'instance
+        $invoice = new $targetClass($invoiceNumber, $issueDate, $invoiceTypeCode, $currencyCode);
+        
+        // Chargement des données de base
+        self::loadBasicData($invoice, $xpath);
+        
+        // Chargement des parties
+        self::loadSeller($invoice, $xpath);
+        self::loadBuyer($invoice, $xpath);
+        
+        // Chargement des informations de paiement
+        self::loadPaymentInfo($invoice, $xpath);
+        
+        // Chargement des documents joints
+        self::loadAttachedDocuments($invoice, $xpath);
+        
+        // Chargement des lignes de facture
+        self::loadInvoiceLines($invoice, $xpath);
+        
+        // Calcul des totaux si des lignes ont été chargées
+        if (!empty($invoice->getInvoiceLines())) {
+            $invoice->calculateTotals();
+        }
+        
+        // Chargement des données spécifiques UBL.BE
+        if ($invoice instanceof UblBeInvoice) {
+            self::loadUblBeSpecificData($invoice, $xpath);
+        }
+        
+        return $invoice;
+    }
+    
+    /**
+     * Détecte le type de facture depuis le CustomizationID
+     * 
+     * @param \DOMXPath $xpath
+     * @return string Classe à instancier
+     */
+    private static function detectInvoiceType(\DOMXPath $xpath): string
+    {
+        $customizationId = self::getXPathValue($xpath, '//cbc:CustomizationID', '');
+        
+        if (strpos($customizationId, 'UBL.BE') !== false) {
+            return UblBeInvoice::class;
+        }
+        
+        return EN16931Invoice::class;
+    }
+    
+    /**
+     * Charge les données de base
+     */
+    private static function loadBasicData(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $dueDate = self::getXPathValue($xpath, '//cbc:DueDate');
+        if ($dueDate) {
+            $invoice->setDueDate($dueDate);
+        }
+        
+        $deliveryDate = self::getXPathValue($xpath, '//cbc:ActualDeliveryDate');
+        if ($deliveryDate) {
+            $invoice->setDeliveryDate($deliveryDate);
+        }
+        
+        $orderRef = self::getXPathValue($xpath, '//cac:OrderReference/cbc:ID');
+        if ($orderRef) {
+            $invoice->setPurchaseOrderReference($orderRef);
+        }
+        
+        $contractRef = self::getXPathValue($xpath, '//cac:ContractDocumentReference/cbc:ID');
+        if ($contractRef) {
+            $invoice->setContractReference($contractRef);
+        }
+    }
+    
+    /**
+     * Charge le vendeur
+     */
+    private static function loadSeller(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $basePath = '//cac:AccountingSupplierParty/cac:Party';
+        
+        $name = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:RegistrationName");
+        $vatId = self::getXPathValue($xpath, "{$basePath}/cac:PartyTaxScheme/cbc:CompanyID");
+        
+        if (!$name || !$vatId) {
+            return; // Données incomplètes
+        }
+        
+        // Adresse
+        $addressPath = "{$basePath}/cac:PostalAddress";
+        $streetName = self::getXPathValue($xpath, "{$addressPath}/cbc:StreetName", '');
+        $cityName = self::getXPathValue($xpath, "{$addressPath}/cbc:CityName", '');
+        $postalZone = self::getXPathValue($xpath, "{$addressPath}/cbc:PostalZone", '');
+        $countryCode = self::getXPathValue($xpath, "{$addressPath}/cac:Country/cbc:IdentificationCode", '');
+        
+        if (!$streetName || !$cityName || !$postalZone || !$countryCode) {
+            return;
+        }
+        
+        $address = new Address($streetName, $cityName, $postalZone, $countryCode);
+        
+        // Autres informations
+        $companyId = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:CompanyID");
+        $email = self::getXPathValue($xpath, "{$basePath}/cac:Contact/cbc:ElectronicMail");
+        
+        // Adresse électronique
+        $electronicAddress = null;
+        $endpointId = self::getXPathValue($xpath, "{$basePath}/cbc:EndpointID");
+        if ($endpointId) {
+            $endpointNode = $xpath->query("{$basePath}/cbc:EndpointID")->item(0);
+            $schemeId = $endpointNode?->getAttribute('schemeID') ?? '9925';
+            
+            try {
+                $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
+            } catch (\Exception $e) {
+                // Ignore si invalide
+            }
+        }
+        
+        $seller = new Party($name, $address, $vatId, $companyId, $email, $electronicAddress);
+        $invoice->setSeller($seller);
+    }
+    
+    /**
+     * Charge l'acheteur
+     */
+    private static function loadBuyer(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $basePath = '//cac:AccountingCustomerParty/cac:Party';
+        
+        $name = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:RegistrationName");
+        if (!$name) {
+            return;
+        }
+        
+        // Adresse
+        $addressPath = "{$basePath}/cac:PostalAddress";
+        $streetName = self::getXPathValue($xpath, "{$addressPath}/cbc:StreetName", '');
+        $cityName = self::getXPathValue($xpath, "{$addressPath}/cbc:CityName", '');
+        $postalZone = self::getXPathValue($xpath, "{$addressPath}/cbc:PostalZone", '');
+        $countryCode = self::getXPathValue($xpath, "{$addressPath}/cac:Country/cbc:IdentificationCode", '');
+        
+        if (!$streetName || !$cityName || !$postalZone || !$countryCode) {
+            return;
+        }
+        
+        $address = new Address($streetName, $cityName, $postalZone, $countryCode);
+        
+        $vatId = self::getXPathValue($xpath, "{$basePath}/cac:PartyTaxScheme/cbc:CompanyID");
+        $email = self::getXPathValue($xpath, "{$basePath}/cac:Contact/cbc:ElectronicMail");
+        
+        // Adresse électronique
+        $electronicAddress = null;
+        $endpointId = self::getXPathValue($xpath, "{$basePath}/cbc:EndpointID");
+        if ($endpointId) {
+            $endpointNode = $xpath->query("{$basePath}/cbc:EndpointID")->item(0);
+            $schemeId = $endpointNode?->getAttribute('schemeID') ?? '9925';
+            
+            try {
+                $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
+            } catch (\Exception $e) {
+                // Ignore si invalide
+            }
+        }
+        
+        $buyer = new Party($name, $address, $vatId, null, $email, $electronicAddress);
+        $invoice->setBuyer($buyer);
+    }
+    
+    /**
+     * Charge les informations de paiement
+     */
+    private static function loadPaymentInfo(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $iban = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID');
+        if (!$iban) {
+            return;
+        }
+        
+        $paymentMeansCode = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentMeansCode', '30');
+        $bic = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cbc:ID');
+        $paymentRef = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentID');
+        $paymentTerms = self::getXPathValue($xpath, '//cbc:Note');
+        
+        try {
+            $paymentInfo = new PaymentInfo($paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms);
+            $invoice->setPaymentInfo($paymentInfo);
+        } catch (\Exception $e) {
+            // Ignore si invalide
+        }
+    }
+    
+    /**
+     * Charge les documents joints
+     */
+    private static function loadAttachedDocuments(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $attachedDocs = $xpath->query('//cac:AdditionalDocumentReference');
+        
+        foreach ($attachedDocs as $docNode) {
+            $docId = self::getXPathValue($xpath, 'cbc:ID', null, $docNode);
+            
+            // Ignore les références qui ne sont pas des pièces jointes
+            if ($docId !== 'Attachment') {
+                continue;
+            }
+            
+            $embeddedDocNode = $xpath->query('cac:Attachment/cbc:EmbeddedDocumentBinaryObject', $docNode)->item(0);
+            if (!$embeddedDocNode) {
+                continue;
+            }
+            
+            $base64Content = $embeddedDocNode->nodeValue;
+            $mimeType = $embeddedDocNode->getAttribute('mimeCode');
+            $filename = $embeddedDocNode->getAttribute('filename');
+            
+            if (!$base64Content || !$mimeType || !$filename) {
+                continue;
+            }
+            
+            $fileContent = base64_decode($base64Content);
+            $description = self::getXPathValue($xpath, 'cbc:DocumentDescription', null, $docNode);
+            $documentType = self::getXPathValue($xpath, 'cbc:DocumentTypeCode', null, $docNode);
+            
+            try {
+                $document = new AttachedDocument($filename, $fileContent, $mimeType, $description, $documentType);
+                $invoice->attachDocument($document);
+            } catch (\Exception $e) {
+                // Ignore si invalide
+            }
+        }
+    }
+    
+    /**
+     * Charge les lignes de facture
+     */
+    private static function loadInvoiceLines(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $lines = $xpath->query('//cac:InvoiceLine');
+        
+        foreach ($lines as $lineNode) {
+            $lineId = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
+            $lineName = self::getXPathValue($xpath, 'cac:Item/cbc:Name', null, $lineNode);
+            
+            if (!$lineId || !$lineName) {
+                continue;
+            }
+            
+            $quantityNode = $xpath->query('cbc:InvoicedQuantity', $lineNode)->item(0);
+            $quantity = $quantityNode ? (float)$quantityNode->nodeValue : 0;
+            $unitCode = $quantityNode?->getAttribute('unitCode') ?? 'C62';
+            
+            $unitPrice = (float)self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
+            $vatCategory = self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', 'S', $lineNode);
+            $vatRate = (float)self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
+            $description = self::getXPathValue($xpath, 'cac:Item/cbc:Description', null, $lineNode);
+            
+            if ($quantity <= 0) {
+                continue;
+            }
+            
+            try {
+                $line = new InvoiceLine($lineId, $lineName, $quantity, $unitCode, $unitPrice, $vatCategory, $vatRate, $description);
+                $invoice->addInvoiceLine($line);
+            } catch (\Exception $e) {
+                // Ignore si ligne invalide
+            }
+        }
+    }
+    
+    /**
+     * Charge les données spécifiques UBL.BE
+     */
+    private static function loadUblBeSpecificData(UblBeInvoice $invoice, \DOMXPath $xpath): void
+    {
+        $buyerRef = self::getXPathValue($xpath, '//cbc:BuyerReference');
+        if ($buyerRef) {
+            $invoice->setBuyerReference($buyerRef);
+        }
+        
+        $paymentTerms = self::getXPathValue($xpath, '//cbc:Note');
+        if ($paymentTerms) {
+            $invoice->setPaymentTerms($paymentTerms);
+        }
+        
+        $exemptionReason = self::getXPathValue($xpath, '//cac:TaxSubtotal/cac:TaxCategory/cbc:TaxExemptionReasonCode');
+        if ($exemptionReason) {
+            try {
+                $invoice->setVatExemptionReason($exemptionReason);
+            } catch (\Exception $e) {
+                // Ignore si code non reconnu
+            }
+        }
+    }
+    
+    /**
+     * Extrait une valeur via XPath
+     * 
+     * @param \DOMXPath $xpath
+     * @param string $query
+     * @param string|null $default
+     * @param \DOMNode|null $contextNode
+     * @return string|null
+     */
+    private static function getXPathValue(\DOMXPath $xpath, string $query, ?string $default = null, ?\DOMNode $contextNode = null): ?string
+    {
+        $nodes = $contextNode 
+            ? $xpath->query($query, $contextNode)
+            : $xpath->query($query);
+        
+        if ($nodes && $nodes->length > 0) {
+            $value = trim($nodes->item(0)->nodeValue);
+            return $value !== '' ? $value : $default;
+        }
+        
+        return $default;
+    }
+}
