@@ -37,24 +37,25 @@ trait InvoiceValidatorTrait
      * @param string $vat Numéro de TVA à valider
      * @return bool True si valide
      */
-    protected function validateBelgianVat(string $vat): bool
-    {
-        // Nettoyage du numéro
-        $vat = strtoupper(str_replace([' ', '.'], '', $vat));
-        
-        // Vérification du format
-        if (!preg_match('/^BE[0-9]{10}$/', $vat)) {
-            return false;
-        }
-        
-        // Extraction des chiffres
-        $digits = substr($vat, 2);
-        $check = (int)substr($digits, -2);
-        $base = (int)substr($digits, 0, 8);
-        
-        // Validation du modulo 97
-        return (97 - ($base % 97)) === $check;
+protected function validateBelgianVat(string $vat): bool
+{
+    $vat = strtoupper(str_replace([' ', '.'], '', $vat));
+
+    if (!preg_match('/^BE[0-9]{10}$/', $vat)) {
+        return false;
     }
+
+    $digits = substr($vat, 2); // ex: "0123456789" ou "1234567890"
+    $number = (int)substr($digits, 0, 8);
+    $check  = (int)substr($digits, -2);
+
+    // Si le premier chiffre n’est pas zéro, on prend 9 chiffres pour la base
+    if ($digits[0] !== '0') {
+        $number = (int)substr($digits, 0, 9);
+    }
+
+    return (97 - ($number % 97)) === $check;
+}
 
     /**
      * Valide un numéro de TVA européen (format basique)
