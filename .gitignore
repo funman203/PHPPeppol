@@ -1,2 +1,38 @@
+# Composer
 /vendor/
 composer.lock
+
+# PHPUnit
+/.phpunit.cache
+/coverage/
+
+# Examples outputs
+/examples/output/
+/examples/data/
+
+# IDE
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Schematron sources (téléchargés temporairement pour compilation)
+/resources/schematron/*.sch
+/resources/iso-schematron/*.xsl
+
+# IMPORTANT: Ne PAS ignorer les fichiers compilés
+# Les .xsl dans resources/compiled/ DOIVENT être versionnés dans Git
+# /resources/compiled/*.xsl  ← NE PAS décommenter cette ligne !
+
+# Logs
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
+*.cache

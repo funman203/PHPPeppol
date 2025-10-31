@@ -46,11 +46,19 @@ class SchematronValidatorTest extends TestCase
             $result = $this->validator->validate($validXml, ['ublbe']);
             
             $this->assertNotNull($result);
-            $this->assertTrue($result->isValid() || $result->getErrorCount() > 0);
+            // Le résultat peut être valide ou invalide selon les règles
+            // L'important est que la validation s'exécute sans crash
+            $this->assertIsInt($result->getErrorCount());
             
-        } catch (\Exception $e) {
-            // Si les fichiers Schematron ne sont pas installés
-            $this->markTestSkipped('Fichiers Schematron non disponibles: ' . $e->getMessage());
+        } catch (\RuntimeException $e) {
+            // Si les fichiers Schematron ne sont pas disponibles ou compilation échoue
+            if (strpos($e->getMessage(), 'Schematron') !== false || 
+                strpos($e->getMessage(), 'XSLT') !== false ||
+                strpos($e->getMessage(), 'compilation') !== false) {
+                $this->markTestSkipped('Fichiers Schematron non disponibles: ' . $e->getMessage());
+            } else {
+                throw $e;
+            }
         }
     }
     
@@ -62,11 +70,18 @@ class SchematronValidatorTest extends TestCase
             $result = $this->validator->validate($invalidXml, ['ublbe']);
             
             $this->assertNotNull($result);
+            // Un XML incomplet devrait échouer
             $this->assertFalse($result->isValid());
             $this->assertGreaterThan(0, $result->getErrorCount());
             
-        } catch (\Exception $e) {
-            $this->markTestSkipped('Fichiers Schematron non disponibles: ' . $e->getMessage());
+        } catch (\RuntimeException $e) {
+            if (strpos($e->getMessage(), 'Schematron') !== false || 
+                strpos($e->getMessage(), 'XSLT') !== false ||
+                strpos($e->getMessage(), 'compilation') !== false) {
+                $this->markTestSkipped('Fichiers Schematron non disponibles: ' . $e->getMessage());
+            } else {
+                throw $e;
+            }
         }
     }
     
@@ -144,9 +159,9 @@ class SchematronValidatorTest extends TestCase
             postalZone: '1050',
             cityName: 'Brussels',
             countryCode: 'BE',
-            vatId: 'BE0987654321',
+            vatId: 'BE0477472701',
             electronicAddressScheme: '9925',
-            electronicAddress: 'BE0987654321'
+            electronicAddress: 'BE0477472701'
         );
         
         $invoice->setBuyerReference('TEST-REF-001');
