@@ -428,17 +428,6 @@ class SchematronValidator
         return $results;
     }
     */
-    /**
-     * Nettoie le cache (legacy - plus utilisé avec les pré-compilés)
-     * 
-     * @return bool
-     */
-    public function clearCache(): bool
-    {
-        // Plus de cache en mode pré-compilé, mais on garde la méthode
-        // pour compatibilité avec les scripts existants
-        return true;
-    }
     
     /**
      * Compile un fichier Schematron en XSLT
