@@ -376,7 +376,7 @@ class SchematronValidator
      * 
      * @return array<string, bool>
      */
-    public function installIsoSchematronXslt(): array
+/*    public function installIsoSchematronXslt(): array
     {
         $files = [
             'iso_dsdl_include.xsl',
@@ -427,7 +427,7 @@ class SchematronValidator
         
         return $results;
     }
-    
+    */
     /**
      * Nettoie le cache (legacy - plus utilisé avec les pré-compilés)
      * 
