@@ -223,13 +223,11 @@ class SchematronValidator
         // Appliquer la transformation
         $processor = new \XSLTProcessor();
         
-        try {
-            $processor->importStylesheet($xslDoc);
-        } catch (\Exception $e) {
+        if (!@$processor->importStylesheet($xslDoc)) {
             $errors = libxml_get_errors();
             libxml_clear_errors();
             throw new \RuntimeException(
-                "Erreur import XSLT: " . $e->getMessage() .
+                "Erreur import XSLT: " . basename($xslPath) .
                 ($errors ? "\nLibXML: " . $errors[0]->message : '')
             );
         }
@@ -248,366 +246,206 @@ class SchematronValidator
         return $result;
     }
     
-/**
- * Compile un fichier Schematron en XSLT (pour le script de compilation)
- * Cette méthode est publique pour permettre la compilation via le script CLI
- * 
- * @param string $schematronPath Chemin vers le fichier .sch
- * @return string Contenu XSLT compilé
- */
-public function compileSchematronFile(string $schematronPath): string
-{
-    if (!file_exists($schematronPath)) {
-        throw new \RuntimeException("Fichier Schematron introuvable: {$schematronPath}");
-    }
-    
-    // Pour la compilation, on a besoin des XSLT ISO
-    $isoDir = __DIR__ . '/../../resources/iso-schematron';
-    $requiredFiles = [
-        'iso_dsdl_include.xsl',
-        'iso_abstract_expand.xsl',
-        'iso_svrl_for_xslt2.xsl'
-    ];
-    
-    $missing = [];
-    foreach ($requiredFiles as $file) {
-        $path = $isoDir . '/' . $file;
-        if (!file_exists($path)) {
-            $missing[] = $file;
-        }
-    }
-    
-    if (!empty($missing)) {
-        throw new \RuntimeException(
-            "Fichiers XSLT ISO Schematron manquants pour la compilation:\n" .
-            "  - " . implode("\n  - ", $missing) . "\n" .
-            "Installez-les avec: php bin/install-schematron.php"
-        );
-    }
-    
-    // Charger le fichier Schematron
-    libxml_use_internal_errors(true);
-    libxml_clear_errors();
-    
-    $schematronDoc = new \DOMDocument();
-    $schematronDoc->preserveWhiteSpace = false;
-    $schematronDoc->formatOutput = false;
-    
-    if (!$schematronDoc->load($schematronPath)) {
-        $errors = libxml_get_errors();
-        libxml_clear_errors();
-        throw new \RuntimeException(
-            "Impossible de charger le fichier Schematron: {$schematronPath}" .
-            ($errors ? "\n  " . $errors[0]->message : '')
-        );
-    }
-    
-    try {
-        echo "  Étape 1/3: Inclusion des fichiers externes...\n";
-        $step1 = $this->applyIsoXsltForCompilation(
-            $schematronDoc, 
-            $isoDir . '/iso_dsdl_include.xsl'
-        );
-        
-        echo "  Étape 2/3: Expansion des patterns abstraits...\n";
-        $step2 = $this->applyIsoXsltForCompilation(
-            $step1, 
-            $isoDir . '/iso_abstract_expand.xsl'
-        );
-        
-        echo "  Étape 3/3: Compilation finale en XSLT...\n";
-        $xsltDoc = $this->applyIsoXsltForCompilation(
-            $step2, 
-            $isoDir . '/iso_svrl_for_xslt2.xsl'
-        );
-        
-        $result = $xsltDoc->saveXML();
-        
-        if (empty($result) || strlen($result) < 1000) {
-            throw new \RuntimeException(
-                "XSLT compilé trop petit ou vide (" . strlen($result) . " octets)"
-            );
-        }
-        
-        return $result;
-        
-    } catch (\Exception $e) {
-        throw new \RuntimeException(
-            "Erreur lors de la compilation Schematron: " . $e->getMessage()
-        );
-    }
-}
-    
     /**
- * Applique une transformation XSLT ISO pour la compilation
- * 
- * @param \DOMDocument $sourceDoc
- * @param string $xsltPath
- * @return \DOMDocument
- */
-private function applyIsoXsltForCompilation(\DOMDocument $sourceDoc, string $xsltPath): \DOMDocument
-{
-    libxml_use_internal_errors(true);
-    libxml_clear_errors();
-    
-    // Charger le XSLT
-    $xslDoc = new \DOMDocument();
-    if (!$xslDoc->load($xsltPath)) {
-        $errors = libxml_get_errors();
-        libxml_clear_errors();
-        throw new \RuntimeException(
-            "Impossible de charger XSLT: {$xsltPath}" .
-            ($errors ? ": " . $errors[0]->message : '')
-        );
-    }
-    
-    // Créer le processeur
-    $processor = new \XSLTProcessor();
-    
-    // Paramètres Schematron
-    $processor->setParameter('', 'generate-paths', 'true');
-    $processor->setParameter('', 'diagnose', 'yes');
-    $processor->setParameter('', 'phase', '#ALL');
-    
-    // CORRECTION : Importer le stylesheet AVANT d'appeler transformToDoc
-    if (!@$processor->importStylesheet($xslDoc)) {
-        $errors = libxml_get_errors();
-        libxml_clear_errors();
-        
-        $errorMsg = "Erreur import XSLT: {$xsltPath}";
-        if (!empty($errors)) {
-            $errorMsg .= "\n";
-            foreach ($errors as $error) {
-                $errorMsg .= "  LibXML [{$error->level}] {$error->message} (ligne {$error->line})";
-            }
-        }
-        
-        throw new \RuntimeException($errorMsg);
-    }
-    
-    // Maintenant on peut transformer
-    $resultDoc = @$processor->transformToDoc($sourceDoc);
-    
-    if ($resultDoc === false) {
-        $errors = libxml_get_errors();
-        libxml_clear_errors();
-        
-        $errorMsg = "Erreur transformation XSLT: {$xsltPath}";
-        if (!empty($errors)) {
-            $errorMsg .= "\n";
-            foreach ($errors as $error) {
-                $errorMsg .= "  LibXML [{$error->level}] {$error->message} (ligne {$error->line})";
-            }
-        }
-        
-        throw new \RuntimeException($errorMsg);
-    }
-    
-    libxml_clear_errors();
-    return $resultDoc;
-}
-
-    
-    
-    /**
-     * Compile un fichier Schematron en XSLT
+     * Compile un fichier Schematron en XSLT (pour le script de compilation)
+     * Cette méthode est publique pour permettre la compilation via le script CLI
      * 
-     * Le processus de compilation Schematron -> XSLT se fait en plusieurs étapes :
-     * 1. Inclusion des fichiers externes
-     * 2. Expansion des patterns abstraits
-     * 3. Compilation finale en XSLT
-     * 
-     * @param string $schematronPath
-     * @return string Contenu XSLT
+     * @param string $schematronPath Chemin vers le fichier .sch
+     * @return string Contenu XSLT compilé
      */
-    private function compileSchematron(string $schematronPath): string
+    public function compileSchematronFile(string $schematronPath): string
     {
-        $cacheKey = md5($schematronPath . filemtime($schematronPath));
-        
-        // Vérifier le cache mémoire
-        if (isset($this->xsltCache[$cacheKey])) {
-            return $this->xsltCache[$cacheKey];
+        if (!file_exists($schematronPath)) {
+            throw new \RuntimeException("Fichier Schematron introuvable: {$schematronPath}");
         }
         
-        // Vérifier le cache disque
-        if ($this->useCache) {
-            $cachedPath = $this->cacheDir . '/' . $cacheKey . '.xsl';
-            if (file_exists($cachedPath)) {
-                $content = file_get_contents($cachedPath);
-                $this->xsltCache[$cacheKey] = $content;
-                return $content;
-            }
-        }
-        
-        // Compiler le Schematron
-        $xsltContent = $this->performSchematronCompilation($schematronPath);
-        
-        // Sauvegarder en cache
-        if ($this->useCache) {
-            $cachedPath = $this->cacheDir . '/' . $cacheKey . '.xsl';
-            @file_put_contents($cachedPath, $xsltContent);
-        }
-        
-        $this->xsltCache[$cacheKey] = $xsltContent;
-        return $xsltContent;
-    }
-    
-    /**
-     * Effectue la compilation Schematron -> XSLT
-     * 
-     * Utilise les feuilles de style ISO Schematron standard
-     * 
-     * @param string $schematronPath
-     * @return string
-     */
-    private function performSchematronCompilation(string $schematronPath): string
-    {
-        // Vérifier et installer les XSLT ISO si nécessaire
-        $this->ensureIsoSchematronXslt();
-        
-        // Charger le fichier Schematron
-        libxml_use_internal_errors(true);
-        libxml_clear_errors();
-        
-        $schematronDoc = new DOMDocument();
-        if (!$schematronDoc->load($schematronPath)) {
-            $errors = libxml_get_errors();
-            libxml_clear_errors();
-            throw new \RuntimeException(
-                "Impossible de charger le fichier Schematron: {$schematronPath}" .
-                ($errors ? "\nErreur: " . $errors[0]->message : '')
-            );
-        }
-        
-        try {
-            // Étape 1 : Inclusion des fichiers externes (iso_dsdl_include.xsl)
-            $step1 = $this->applyIsoXslt($schematronDoc, 'iso_dsdl_include.xsl');
-            
-            // Étape 2 : Expansion des patterns abstraits (iso_abstract_expand.xsl)
-            $step2 = $this->applyIsoXslt($step1, 'iso_abstract_expand.xsl');
-            
-            // Étape 3 : Compilation en XSLT (iso_svrl_for_xslt2.xsl)
-            $xsltDoc = $this->applyIsoXslt($step2, 'iso_svrl_for_xslt2.xsl');
-            
-            return $xsltDoc->saveXML();
-            
-        } catch (\RuntimeException $e) {
-            // Si la compilation échoue, proposer une alternative
-            throw new \RuntimeException(
-                "La compilation Schematron a échoué.\n" .
-                "Erreur: " . $e->getMessage() . "\n\n" .
-                "Solutions possibles:\n" .
-                "1. Réinstallez les fichiers XSLT ISO: php bin/install-schematron.php\n" .
-                "2. Vérifiez que libxslt est installé: php -m | grep xsl\n" .
-                "3. Utilisez uniquement la validation PHP: \$invoice->validate()\n"
-            );
-        }
-    }
-    
-    /**
-     * Assure que les XSLT ISO Schematron sont présents
-     * 
-     * @return void
-     * @throws \RuntimeException Si installation échoue
-     */
-    private function ensureIsoSchematronXslt(): void
-    {
-        $required = [
+        // Pour la compilation, on a besoin des XSLT ISO
+        $isoDir = __DIR__ . '/../../resources/iso-schematron';
+        $requiredFiles = [
             'iso_dsdl_include.xsl',
             'iso_abstract_expand.xsl',
-            'iso_svrl_for_xslt2.xsl'
+            'iso_svrl_for_xslt2.xsl',
+            'iso_schematron_skeleton_for_saxon.xsl'
         ];
         
         $missing = [];
-        foreach ($required as $file) {
-            $path = __DIR__ . '/../../resources/iso-schematron/' . $file;
+        foreach ($requiredFiles as $file) {
+            $path = $isoDir . '/' . $file;
             if (!file_exists($path)) {
                 $missing[] = $file;
             }
         }
         
         if (!empty($missing)) {
-            // Essayer de télécharger automatiquement
-            $results = $this->installIsoSchematronXslt();
+            throw new \RuntimeException(
+                "Fichiers XSLT ISO Schematron manquants pour la compilation:\n" .
+                "  - " . implode("\n  - ", $missing) . "\n" .
+                "Installez-les avec: php bin/install-schematron.php"
+            );
+        }
+        
+        // Charger le fichier Schematron
+        libxml_use_internal_errors(true);
+        libxml_clear_errors();
+        
+        $schematronDoc = new \DOMDocument();
+        $schematronDoc->preserveWhiteSpace = false;
+        $schematronDoc->formatOutput = false;
+        
+        if (!$schematronDoc->load($schematronPath)) {
+            $errors = libxml_get_errors();
+            libxml_clear_errors();
+            throw new \RuntimeException(
+                "Impossible de charger le fichier Schematron: {$schematronPath}" .
+                ($errors ? "\n  " . $errors[0]->message : '')
+            );
+        }
+        
+        try {
+            echo "  Étape 1/3: Inclusion des fichiers externes...\n";
+            $step1 = $this->applyIsoXsltForCompilation(
+                $schematronDoc, 
+                $isoDir . '/iso_dsdl_include.xsl'
+            );
             
-            // Vérifier à nouveau
-            foreach ($missing as $file) {
-                $path = __DIR__ . '/../../resources/iso-schematron/' . $file;
-                if (!file_exists($path)) {
-                    throw new \RuntimeException(
-                        "Fichiers XSLT ISO Schematron manquants. Installez-les avec:\n" .
-                        "composer install-schematron\n" .
-                        "Ou téléchargez-les depuis: https://github.com/Schematron/schematron"
-                    );
-                }
+            echo "  Étape 2/3: Expansion des patterns abstraits...\n";
+            $step2 = $this->applyIsoXsltForCompilation(
+                $step1, 
+                $isoDir . '/iso_abstract_expand.xsl'
+            );
+            
+            echo "  Étape 3/3: Compilation finale en XSLT...\n";
+            $xsltDoc = $this->applyIsoXsltForCompilation(
+                $step2, 
+                $isoDir . '/iso_svrl_for_xslt2.xsl'
+            );
+            
+            $result = $xsltDoc->saveXML();
+            
+            if (empty($result) || strlen($result) < 1000) {
+                throw new \RuntimeException(
+                    "XSLT compilé trop petit ou vide (" . strlen($result) . " octets)"
+                );
             }
+            
+            return $result;
+            
+        } catch (\Exception $e) {
+            // Si la compilation échoue, vérifier s'il y a une version pré-compilée disponible
+            $filename = basename($schematronPath, '.sch');
+            throw new \RuntimeException(
+                "Erreur lors de la compilation Schematron: " . $e->getMessage() . "\n\n" .
+                "💡 Astuce: Si un fichier XSLT pré-compilé officiel existe pour '{$filename}',\n" .
+                "   téléchargez-le directement au lieu de compiler le .sch source."
+            );
         }
     }
     
     /**
-     * Applique une transformation XSLT ISO Schematron
+     * Applique une transformation XSLT ISO pour la compilation
      * 
-     * @param DOMDocument $sourceDoc
-     * @param string $xsltFilename
-     * @return DOMDocument
+     * @param \DOMDocument $sourceDoc
+     * @param string $xsltPath
+     * @return \DOMDocument
      */
-    private function applyIsoXslt(DOMDocument $sourceDoc, string $xsltFilename): DOMDocument
+    private function applyIsoXsltForCompilation(\DOMDocument $sourceDoc, string $xsltPath): \DOMDocument
     {
-        // Chemin des XSLT ISO Schematron
-        $isoXsltPath = __DIR__ . '/../../resources/iso-schematron/' . $xsltFilename;
-        
-        if (!file_exists($isoXsltPath)) {
-            throw new \RuntimeException(
-                "XSLT ISO Schematron introuvable: {$isoXsltPath}\n" .
-                "Installez les fichiers avec: composer install-schematron"
-            );
-        }
-        
-        // Charger le XSLT avec gestion d'erreurs libxml
         libxml_use_internal_errors(true);
         libxml_clear_errors();
         
-        $xsltDoc = new DOMDocument();
-        $xsltDoc->load($isoXsltPath);
+        // Charger le XSLT
+        $xslDoc = new \DOMDocument();
+        if (!$xslDoc->load($xsltPath)) {
+            $errors = libxml_get_errors();
+            libxml_clear_errors();
+            throw new \RuntimeException(
+                "Impossible de charger XSLT: {$xsltPath}" .
+                ($errors ? ": " . $errors[0]->message : '')
+            );
+        }
         
-        $processor = new XSLTProcessor();
+        // Créer le processeur
+        $processor = new \XSLTProcessor();
         
-        // Paramètres optionnels pour la compilation Schematron
+        // IMPORTANT : Augmenter la limite de récursion pour éviter l'erreur "infinite template recursion"
+        // Certains schématrons (comme UBL.BE) ont des templates récursifs profonds
+        if (method_exists($processor, 'setSecurityPrefs')) {
+            $processor->setSecurityPrefs(XSL_SECPREF_NONE);
+        }
+        
+        // Paramètres Schematron standards
         $processor->setParameter('', 'generate-paths', 'true');
         $processor->setParameter('', 'diagnose', 'yes');
         $processor->setParameter('', 'phase', '#ALL');
         
-        try {
-            $processor->importStylesheet($xsltDoc);
-        } catch (\Exception $e) {
-            $errors = libxml_get_errors();
-            libxml_clear_errors();
-            
-            throw new \RuntimeException(
-                "Erreur lors de l'import du XSLT {$xsltFilename}: " . $e->getMessage() .
-                ($errors ? "\nLibXML: " . $errors[0]->message : '')
-            );
+        // Paramètre pour éviter la récursion infinie dans strip-strings
+        // Si le fichier est iso_dsdl_include.xsl, on désactive certaines optimisations
+        if (basename($xsltPath) === 'iso_dsdl_include.xsl') {
+            // Ne pas essayer de strip les whitespaces de manière récursive
+            $processor->setParameter('', 'strip-space', 'false');
         }
         
-        try {
-            $resultDoc = $processor->transformToDoc($sourceDoc);
-        } catch (\Exception $e) {
+        // Importer le stylesheet
+        if (!@$processor->importStylesheet($xslDoc)) {
             $errors = libxml_get_errors();
             libxml_clear_errors();
             
-            throw new \RuntimeException(
-                "Erreur lors de la transformation XSLT {$xsltFilename}: " . $e->getMessage() .
-                ($errors ? "\nLibXML: " . $errors[0]->message : '')
-            );
+            $errorMsg = "Erreur import XSLT: {$xsltPath}";
+            if (!empty($errors)) {
+                $errorMsg .= "\n";
+                foreach ($errors as $error) {
+                    $errorMsg .= "  LibXML [{$error->level}] {$error->message} (ligne {$error->line})";
+                }
+            }
+            
+            throw new \RuntimeException($errorMsg);
+        }
+        
+        // Augmenter la limite de récursion via ini_set si possible
+        $oldMaxDepth = ini_get('xsl.max_depth');
+        if ($oldMaxDepth !== false) {
+            ini_set('xsl.max_depth', '5000');
+        }
+        
+        // Transformer avec gestion des erreurs
+        libxml_clear_errors();
+        $resultDoc = @$processor->transformToDoc($sourceDoc);
+        
+        // Restaurer l'ancienne valeur
+        if ($oldMaxDepth !== false) {
+            ini_set('xsl.max_depth', $oldMaxDepth);
         }
         
         if ($resultDoc === false) {
             $errors = libxml_get_errors();
             libxml_clear_errors();
             
-            $errorMsg = "Erreur lors de la transformation XSLT: {$xsltFilename}";
+            // Vérifier si c'est une erreur de récursion
+            $isRecursionError = false;
+            $errorMsg = "Erreur transformation XSLT: " . basename($xsltPath);
+            
             if (!empty($errors)) {
-                $errorMsg .= "\nLibXML: " . $errors[0]->message;
+                $errorMsg .= "\n";
+                foreach ($errors as $error) {
+                    $msg = trim($error->message);
+                    if (strpos($msg, 'infinite template recursion') !== false) {
+                        $isRecursionError = true;
+                    }
+                    $errorMsg .= "  LibXML [{$error->level}] {$msg}";
+                    if ($error->line > 0) {
+                        $errorMsg .= " (ligne {$error->line})";
+                    }
+                    $errorMsg .= "\n";
+                }
+            }
+            
+            // Si c'est une erreur de récursion, donner des instructions spécifiques
+            if ($isRecursionError) {
+                $errorMsg .= "\n⚠️  Le fichier Schematron contient des structures trop complexes.\n";
+                $errorMsg .= "Solutions possibles:\n";
+                $errorMsg .= "1. Utiliser le fichier XSLT pré-compilé officiel si disponible\n";
+                $errorMsg .= "2. Simplifier le fichier .sch source\n";
+                $errorMsg .= "3. Augmenter xsl.max_depth dans php.ini (actuellement: " . ini_get('xsl.max_depth') . ")\n";
             }
             
             throw new \RuntimeException($errorMsg);
@@ -618,107 +456,70 @@ private function applyIsoXsltForCompilation(\DOMDocument $sourceDoc, string $xsl
     }
     
     /**
-     * Télécharge les XSLT ISO Schematron standard
+     * Installe les fichiers XSLT ISO Schematron nécessaires pour la compilation
+     * Utilisé uniquement par le script de compilation, pas en production
      * 
-     * @param string $filename
-     * @return bool
+     * @return array<string, bool>
      */
-    private function downloadIsoSchematronXslt(string $filename): bool
+    public function installIsoSchematronXslt(): array
     {
-        // Essayer plusieurs sources
-        $sources = [
-            'https://raw.githubusercontent.com/Schematron/schematron/master/trunk/schematron/code/' . $filename,
-            'https://raw.githubusercontent.com/schematron/schematron/2020-10-01/trunk/schematron/code/' . $filename,
+        $files = [
+            'iso_dsdl_include.xsl',
+            'iso_abstract_expand.xsl',
+            'iso_svrl_for_xslt2.xsl',
+            'iso_schematron_skeleton_for_saxon.xsl'
         ];
         
-        $destination = __DIR__ . '/../../resources/iso-schematron/' . $filename;
-        $dir = dirname($destination);
+        $isoDir = __DIR__ . '/../../resources/iso-schematron';
         
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
+        if (!is_dir($isoDir)) {
+            @mkdir($isoDir, 0755, true);
         }
         
-        foreach ($sources as $url) {
-            $content = @file_get_contents($url, false, stream_context_create([
-                'http' => [
-                    'timeout' => 10,
-                    'user_agent' => 'PeppolInvoice/1.0'
-                ]
-            ]));
+        $results = [];
+        
+        foreach ($files as $file) {
+            $path = $isoDir . '/' . $file;
             
-            if ($content !== false && !empty($content)) {
-                return file_put_contents($destination, $content) !== false;
+            // Si déjà présent et valide, skip
+            if (file_exists($path) && filesize($path) > 1000) {
+                $results[$file] = true;
+                continue;
             }
-        }
-        
-        return false;
-    }
-    
-/**
- * Installe les fichiers XSLT ISO Schematron nécessaires pour la compilation
- * Utilisé uniquement par le script de compilation, pas en production
- * 
- * @return array<string, bool>
- */
-public function installIsoSchematronXslt(): array
-{
-    $files = [
-        'iso_dsdl_include.xsl',
-        'iso_abstract_expand.xsl',
-        'iso_svrl_for_xslt2.xsl'
-    ];
-    
-    $isoDir = __DIR__ . '/../../resources/iso-schematron';
-    
-    if (!is_dir($isoDir)) {
-        @mkdir($isoDir, 0755, true);
-    }
-    
-    $results = [];
-    
-    foreach ($files as $file) {
-        $path = $isoDir . '/' . $file;
-        
-        // Si déjà présent et valide, skip
-        if (file_exists($path) && filesize($path) > 1000) {
-            $results[$file] = true;
-            continue;
-        }
-        
-        // Télécharger depuis GitHub
-        $sources = [
-            'https://raw.githubusercontent.com/Schematron/schematron/2020-10-01/trunk/schematron/code/' . $file,
-            'https://raw.githubusercontent.com/Schematron/schematron/master/trunk/schematron/code/' . $file,
-        ];
-        
-        $success = false;
-        foreach ($sources as $url) {
-            $content = @file_get_contents($url, false, stream_context_create([
-                'http' => [
-                    'timeout' => 30,
-                    'user_agent' => 'PHPPeppol/1.0',
-                    'follow_location' => true
-                ],
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false
-                ]
-            ]));
             
-            if ($content !== false && !empty($content) && strlen($content) > 1000) {
-                if (file_put_contents($path, $content) !== false) {
-                    $success = true;
-                    break;
+            // Télécharger depuis GitHub
+            $sources = [
+                'https://raw.githubusercontent.com/Schematron/schematron/2020-10-01/trunk/schematron/code/' . $file,
+                'https://raw.githubusercontent.com/Schematron/schematron/master/trunk/schematron/code/' . $file,
+            ];
+            
+            $success = false;
+            foreach ($sources as $url) {
+                $content = @file_get_contents($url, false, stream_context_create([
+                    'http' => [
+                        'timeout' => 30,
+                        'user_agent' => 'PHPPeppol/1.0',
+                        'follow_location' => true
+                    ],
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false
+                    ]
+                ]));
+                
+                if ($content !== false && !empty($content) && strlen($content) > 1000) {
+                    if (file_put_contents($path, $content) !== false) {
+                        $success = true;
+                        break;
+                    }
                 }
             }
+            
+            $results[$file] = $success;
         }
         
-        $results[$file] = $success;
+        return $results;
     }
-    
-    return $results;
-}
-
     
     /**
      * Parse le résultat SVRL (Schematron Validation Report Language)
@@ -802,13 +603,11 @@ public function installIsoSchematronXslt(): array
      */
     public function clearCache(): bool
     {
-        $this->xsltCache = [];
-        
-        if (!$this->useCache || !is_dir($this->cacheDir)) {
+        if (!is_dir($this->compiledDir)) {
             return true;
         }
         
-        $files = glob($this->cacheDir . '/*.xsl');
+        $files = glob($this->compiledDir . '/*.xsl');
         foreach ($files as $file) {
             @unlink($file);
         }
@@ -825,16 +624,80 @@ public function installIsoSchematronXslt(): array
     public function installSchematronFiles(bool $force = false): array
     {
         $results = [];
+        $schematronDir = __DIR__ . '/../../resources/schematron';
         
-        foreach (array_keys(self::SCHEMATRON_URLS) as $level) {
-            $path = $this->getSchematronPath($level);
+        if (!is_dir($schematronDir)) {
+            @mkdir($schematronDir, 0755, true);
+        }
+        
+        // UBL.BE - Télécharger et extraire du ZIP
+        $ublbePath = $schematronDir . '/UBLBE_Invoice-1.0.sch';
+        if ($force || !file_exists($ublbePath)) {
+            try {
+                $zipContent = @file_get_contents(self::SCHEMATRON_URLS['ublbe'], false, stream_context_create([
+                    'http' => ['timeout' => 30, 'user_agent' => 'PHPPeppol/1.0'],
+                    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+                ]));
+                
+                if ($zipContent !== false) {
+                    $zipPath = sys_get_temp_dir() . '/ublbe_' . uniqid() . '.zip';
+                    file_put_contents($zipPath, $zipContent);
+                    
+                    $zip = new \ZipArchive();
+                    if ($zip->open($zipPath)) {
+                        for ($i = 0; $i < $zip->numFiles; $i++) {
+                            $filename = $zip->getNameIndex($i);
+                            if (preg_match('/UBLBE.*Invoice.*\.sch$/i', $filename)) {
+                                $content = $zip->getFromIndex($i);
+                                file_put_contents($ublbePath, $content);
+                                break;
+                            }
+                        }
+                        $zip->close();
+                    }
+                    @unlink($zipPath);
+                }
+                
+                $results['ublbe'] = file_exists($ublbePath);
+            } catch (\Exception $e) {
+                $results['ublbe'] = false;
+            }
+        } else {
+            $results['ublbe'] = true;
+        }
+        
+        // EN 16931 - Téléchargement direct
+        $en16931Path = $schematronDir . '/EN16931_UBL-1.3.sch';
+        if ($force || !file_exists($en16931Path)) {
+            $content = @file_get_contents(self::SCHEMATRON_URLS['en16931'], false, stream_context_create([
+                'http' => ['timeout' => 30, 'user_agent' => 'PHPPeppol/1.0'],
+                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+            ]));
             
-            if (!$force && file_exists($path)) {
-                $results[$level] = true;
-                continue;
+            if ($content !== false) {
+                file_put_contents($en16931Path, $content);
             }
             
-            $results[$level] = $this->downloadSchematron($level);
+            $results['en16931'] = file_exists($en16931Path);
+        } else {
+            $results['en16931'] = true;
+        }
+        
+        // Peppol - Téléchargement direct
+        $peppolPath = $schematronDir . '/PEPPOL_CIUS-UBL-1.0.sch';
+        if ($force || !file_exists($peppolPath)) {
+            $content = @file_get_contents(self::SCHEMATRON_URLS['peppol'], false, stream_context_create([
+                'http' => ['timeout' => 30, 'user_agent' => 'PHPPeppol/1.0'],
+                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
+            ]));
+            
+            if ($content !== false) {
+                file_put_contents($peppolPath, $content);
+            }
+            
+            $results['peppol'] = file_exists($peppolPath);
+        } else {
+            $results['peppol'] = true;
         }
         
         return $results;

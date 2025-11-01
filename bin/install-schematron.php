@@ -6,7 +6,7 @@
  * 
  * Ce script télécharge et installe :
  * - Les fichiers Schematron officiels UBL.BE, EN 16931, Peppol
- * - Les feuilles de style XSLT ISO Schematron
+ * - Les feuilles de style XSLT ISO Schematron (4 fichiers requis)
  * 
  * Usage: php bin/install-schematron.php
  */
@@ -14,7 +14,7 @@
 declare(strict_types=1);
 
 // Couleurs (désactivées si pas de TTY)
-$isTty = function_exists('posix_isatty') && posix_isatty(STDOUT);
+$isTty = function_exists('posix_isatty') && @posix_isatty(STDOUT);
 const GREEN = "\033[32m";
 const RED = "\033[31m";
 const YELLOW = "\033[33m";
@@ -94,19 +94,58 @@ foreach ($dirs as $dir) {
 
 echo "\n--- Installation XSLT ISO Schematron ---\n";
 
-try {
-    $validator = new Peppol\Validation\SchematronValidator();
-    $isoResults = $validator->installIsoSchematronXslt();
+// Liste complète des fichiers ISO nécessaires
+$isoFiles = [
+    'iso_dsdl_include.xsl',
+    'iso_abstract_expand.xsl',
+    'iso_svrl_for_xslt2.xsl',
+    'iso_schematron_skeleton_for_saxon.xsl'  // MANQUANT !
+];
+
+$isoDir = __DIR__ . '/../resources/iso-schematron';
+
+foreach ($isoFiles as $file) {
+    $path = $isoDir . '/' . $file;
     
-    foreach ($isoResults as $file => $success) {
-        if ($success) {
-            printSuccess("XSLT ISO: {$file}");
-        } else {
-            printError("Échec XSLT ISO: {$file}");
+    if (file_exists($path) && filesize($path) > 1000) {
+        printSuccess("XSLT ISO: {$file} (déjà présent)");
+        continue;
+    }
+    
+    // Télécharger depuis GitHub
+    $sources = [
+        'https://raw.githubusercontent.com/Schematron/schematron/2020-10-01/trunk/schematron/code/' . $file,
+        'https://raw.githubusercontent.com/Schematron/schematron/master/trunk/schematron/code/' . $file,
+    ];
+    
+    $success = false;
+    foreach ($sources as $url) {
+        printInfo("Téléchargement: {$file}...");
+        
+        $content = @file_get_contents($url, false, stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'user_agent' => 'PHPPeppol/1.0',
+                'follow_location' => true
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false
+            ]
+        ]));
+        
+        if ($content !== false && !empty($content) && strlen($content) > 1000) {
+            if (file_put_contents($path, $content) !== false) {
+                printSuccess("XSLT ISO: {$file}");
+                $success = true;
+                break;
+            }
         }
     }
-} catch (Exception $e) {
-    printError("Erreur installation XSLT ISO: " . $e->getMessage());
+    
+    if (!$success) {
+        printError("Échec téléchargement: {$file}");
+    }
 }
 
 echo "\n--- Installation fichiers Schematron officiels ---\n";
@@ -132,6 +171,7 @@ $requiredFiles = [
     'resources/iso-schematron/iso_dsdl_include.xsl',
     'resources/iso-schematron/iso_abstract_expand.xsl',
     'resources/iso-schematron/iso_svrl_for_xslt2.xsl',
+    'resources/iso-schematron/iso_schematron_skeleton_for_saxon.xsl',
 ];
 
 $allPresent = true;
@@ -166,17 +206,17 @@ foreach ($schematronFiles as $file => $name) {
 echo "\n=== Résultat ===\n\n";
 
 if ($allPresent) {
-    printSuccess("Installation réussie ! ✨");
-    echo "\nVous pouvez maintenant utiliser la validation Schematron:\n";
-    echo "  php bin/validate-invoice facture.xml --schematron\n\n";
+    printSuccess("Installation complète réussie ! ✨");
+    echo "\nVous pouvez maintenant compiler les schématrons:\n";
+    echo "  php bin/compile-schematron.php --all\n\n";
     exit(0);
 } else {
     printWarning("Installation partielle");
     echo "\nCertains fichiers n'ont pas pu être téléchargés automatiquement.\n";
     echo "Vous pouvez les télécharger manuellement depuis:\n";
+    echo "  - ISO XSLT: https://github.com/Schematron/schematron/tree/master/trunk/schematron/code\n";
     echo "  - UBL.BE: https://www.ubl.be/\n";
     echo "  - EN 16931: https://github.com/ConnectingEurope/eInvoicing-EN16931\n";
-    echo "  - Peppol: https://github.com/OpenPEPPOL/peppol-bis-invoice-3\n";
-    echo "  - ISO XSLT: https://github.com/Schematron/schematron\n\n";
+    echo "  - Peppol: https://github.com/OpenPEPPOL/peppol-bis-invoice-3\n\n";
     exit(1);
 }
