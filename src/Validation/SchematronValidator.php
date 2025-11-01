@@ -404,7 +404,14 @@ class SchematronValidator
         // Augmenter la limite de récursion via ini_set si possible
         $oldMaxDepth = ini_get('xsl.max_depth');
         if ($oldMaxDepth !== false) {
-            ini_set('xsl.max_depth', '5000');
+            // Tenter d'augmenter à 10000 (valeur élevée pour UBL.BE complexe)
+            @ini_set('xsl.max_depth', '10000');
+        }
+        
+        // Alternative : Définir via setParameter si ini_set échoue
+        if (ini_get('xsl.max_depth') < 5000) {
+            // Si on ne peut pas modifier via ini_set, on tente via le processeur
+            $processor->setParameter('', 'xsl.max_depth', '10000');
         }
         
         // Transformer avec gestion des erreurs
