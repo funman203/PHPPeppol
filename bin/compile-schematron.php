@@ -62,14 +62,15 @@ $sources = [
         'name' => 'UBL.BE',
         'type' => 'compile',
         'source_url' => 'https://www.ubl.be/wp-content/uploads/2024/07/GLOBALUBL.BE-V1.31.zip',
-        'sch_pattern' => '/UBLBE.*Invoice.*\.sch$/i',
+	'sch_pattern' => '/GLOBALUBL.BE.sch$/i',
+        //
         'output_name' => 'UBLBE_Invoice-1.0.xsl'
     ],
     'en16931' => [
         'name' => 'EN 16931',
         'type' => 'download_precompiled',
-        'xsl_url' => 'https://github.com/ConnectingEurope/eInvoicing-EN16931/releases/download/validation-1.3.11/EN16931-UBL-validation.xsl',
-        'sch_url' => 'https://raw.githubusercontent.com/ConnectingEurope/eInvoicing-EN16931/validation-1.3.11/schematrons/EN16931-UBL-validation.sch',
+        'xsl_url' => 'https://github.com/ConnectingEurope/eInvoicing-EN16931/blob/master/ubl/xslt/EN16931-UBL-validation.xslt',
+        'sch_url' => 'https://github.com/ConnectingEurope/eInvoicing-EN16931/blob/master/ubl/schematron/preprocessed/EN16931-UBL-validation-preprocessed.sch',
         'output_name' => 'EN16931_UBL-1.3.xsl'
     ],
     'peppol' => [
