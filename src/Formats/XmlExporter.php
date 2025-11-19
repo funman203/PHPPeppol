@@ -453,11 +453,12 @@ class XmlExporter
             
             // Item
             $item = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Item');
-            $this->addElement($xml, $item, 'cbc:Name', $line->getName());
-            
+            // Description toujours en premier
             if ($line->getDescription()) {
                 $this->addElement($xml, $item, 'cbc:Description', $line->getDescription());
             }
+            $this->addElement($xml, $item, 'cbc:Name', $line->getName());
+                        
             
             $classifiedTaxCategory = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:ClassifiedTaxCategory');
             $this->addElement($xml, $classifiedTaxCategory, 'cbc:ID', $line->getVatCategory());
