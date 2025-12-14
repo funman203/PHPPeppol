@@ -143,8 +143,7 @@ class XmlExporter
         
         $this->addElement($xml, $invoice, 'cbc:DocumentCurrencyCode', $this->invoice->getDocumentCurrencyCode());
         
-        // BT-10: Référence acheteur (pour UBL.BE)
-        if ($this->invoice instanceof UblBeInvoice && $this->invoice->getBuyerReference()) {
+        if ($this->invoice->getBuyerReference()) {
             $this->addElement($xml, $invoice, 'cbc:BuyerReference', $this->invoice->getBuyerReference());
         }
     }
@@ -175,24 +174,12 @@ class XmlExporter
         $documents = $this->invoice->getAttachedDocuments();
         $docsCount = count($documents);
         
-        // UBL-BE-01: Ajouter des références fictives si moins de 2 documents
-        if ($this->invoice instanceof UblBeInvoice && $docsCount < 2) {
-            if ($docsCount < 1) {
-                $this->addPlaceholderDocument($xml, $invoice, 'DOC-REF-1', 'CommercialInvoice', 'Document de référence principal');
-            }
-            if ($docsCount < 2) {
-                $this->addPlaceholderDocument($xml, $invoice, 'DOC-REF-2', 'GeneralTermsAndConditions', 'Conditions générales de vente');
-            }
-        }
         
         foreach ($documents as $doc) {
             $additionalDoc = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:AdditionalDocumentReference');
+            
             $this->addElement($xml, $additionalDoc, 'cbc:ID', 'Attachment');
-            
-            if ($doc->getDocumentType()) {
-                $this->addElement($xml, $additionalDoc, 'cbc:DocumentTypeCode', $doc->getDocumentType());
-            }
-            
+                        
             if ($doc->getDescription()) {
                 $this->addElement($xml, $additionalDoc, 'cbc:DocumentDescription', $doc->getDescription());
             }
@@ -400,8 +387,6 @@ class XmlExporter
             $taxCategory = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxCategory');
             $this->addElement($xml, $taxCategory, 'cbc:ID', $vat->getCategory());
             
-            // UBL-BE-10: cbc:Name obligatoire
-            $this->addElement($xml, $taxCategory, 'cbc:Name', InvoiceConstants::VAT_CATEGORIES[$vat->getCategory()] ?? 'Standard');
             
             $this->addElement($xml, $taxCategory, 'cbc:Percent', number_format($vat->getRate(), 2, '.', ''));
             
@@ -445,12 +430,14 @@ class XmlExporter
             
             $this->addElement($xml, $invoiceLine, 'cbc:ID', $line->getId());
             
+            // cbc:Note ?
+            
             $quantity = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:InvoicedQuantity', (string)$line->getQuantity());
             $quantity->setAttribute('unitCode', $line->getUnitCode());
             $invoiceLine->appendChild($quantity);
             
             $this->addAmountElement($xml, $invoiceLine, 'cbc:LineExtensionAmount', $line->getLineAmount());
-            
+                      
             // Item
             $item = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Item');
             // Description toujours en premier
@@ -458,13 +445,10 @@ class XmlExporter
                 $this->addElement($xml, $item, 'cbc:Description', $line->getDescription());
             }
             $this->addElement($xml, $item, 'cbc:Name', $line->getName());
-                        
-            
+
             $classifiedTaxCategory = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:ClassifiedTaxCategory');
             $this->addElement($xml, $classifiedTaxCategory, 'cbc:ID', $line->getVatCategory());
             
-            // UBL-BE-15: cbc:Name obligatoire
-            $this->addElement($xml, $classifiedTaxCategory, 'cbc:Name', InvoiceConstants::VAT_CATEGORIES[$line->getVatCategory()] ?? 'Standard');
             
             $this->addElement($xml, $classifiedTaxCategory, 'cbc:Percent', number_format($line->getVatRate(), 2, '.', ''));
             
@@ -477,15 +461,7 @@ class XmlExporter
             // Price
             $price = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Price');
             $this->addAmountElement($xml, $price, 'cbc:PriceAmount', $line->getUnitPrice());
-            $invoiceLine->appendChild($price);
-            
-            // UBL-BE-14: TaxTotal obligatoire au niveau ligne
-            if ($this->invoice instanceof UblBeInvoice) {
-                $lineTaxTotal = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxTotal');
-                $this->addAmountElement($xml, $lineTaxTotal, 'cbc:TaxAmount', $line->getLineVatAmount());
-                $invoiceLine->appendChild($lineTaxTotal);
-            }
-            
+            $invoiceLine->appendChild($price);     
             $invoice->appendChild($invoiceLine);
         }
     }

@@ -25,7 +25,6 @@ abstract class InvoiceBase
     use InvoiceValidatorTrait;
     
     // === Informations de base de la facture ===
-    
     /**
      * @var string Numéro unique de facture (BT-1)
      */

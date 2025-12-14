@@ -160,15 +160,13 @@ class EN16931Invoice extends InvoiceBase
      * 
      * @param string $filePath Chemin du fichier
      * @param string|null $description Description
-     * @param string|null $documentType Type de document
      * @return self
      */
     public function attachFile(
         string $filePath,
         ?string $description = null,
-        ?string $documentType = null
     ): self {
-        $document = AttachedDocument::fromFile($filePath, $description, $documentType);
+        $document = AttachedDocument::fromFile($filePath, $description);
         return $this->attachDocument($document);
     }
     

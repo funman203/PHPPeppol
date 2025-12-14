@@ -37,10 +37,6 @@ class AttachedDocument
      */
     private ?string $description;
     
-    /**
-     * @var string|null Type de document (BT-122)
-     */
-    private ?string $documentType;
     
     /**
      * @var int Taille du fichier en octets
@@ -83,7 +79,6 @@ class AttachedDocument
     public static function fromFile(
         string $filePath,
         ?string $description = null,
-        ?string $documentType = null
     ): self {
         if (!file_exists($filePath)) {
             throw new \InvalidArgumentException("Le fichier n'existe pas: {$filePath}");
@@ -101,7 +96,7 @@ class AttachedDocument
         $filename = basename($filePath);
         $mimeType = self::detectMimeType($filePath);
         
-        return new self($filename, $fileContent, $mimeType, $description, $documentType);
+        return new self($filename, $fileContent, $mimeType, $description);
     }
     
     /**

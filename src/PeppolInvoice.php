@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Peppol\Standards\UblBeInvoice;
+use Peppol\Standards\EN16931Invoice;
 use Peppol\Formats\XmlExporter;
 use Peppol\Formats\XmlImporter;
 
@@ -11,16 +11,34 @@ use Peppol\Formats\XmlImporter;
  * 
  * Simplifie l'utilisation de la bibliothèque de facturation électronique
  * en fournissant une API conviviale pour créer, exporter et importer
- * des factures conformes à Peppol BIS / UBL.BE
+ * des factures conformes à Peppol BIS
  * 
- * Cette classe étend UblBeInvoice (conforme UBL.BE 1.0 et EN 16931)
+ * Cette classe étend UblBeInvoice (conforme EN 16931)
  * 
  * @package Peppol
  * @author Votre Nom
  * @version 1.0
  */
-class PeppolInvoice extends UblBeInvoice
+class PeppolInvoice extends EN16931Invoice
 {
+    /**
+     * @var string|null Référence d'acheteur ou PO - Obligatoire
+     */
+    protected ?string $buyerReference = null;
+        
+    /**
+     * Définit la référence d'acheteur
+     * Obligatoire si pas de référence de commande
+     * 
+     * @param string $buyerReference
+     * @return self
+     */
+    public function setBuyerReference(string $buyerReference): self
+    {
+        $this->buyerReference = $buyerReference;
+        return $this;
+    }
+    
     /**
      * Constructeur simplifié
      * 
@@ -210,4 +228,7 @@ class PeppolInvoice extends UblBeInvoice
     {
         echo $this->getSummary();
     }
+    
+        public function getBuyerReference(): ?string { return $this->buyerReference; }
+    
 }
