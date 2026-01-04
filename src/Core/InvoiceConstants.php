@@ -103,7 +103,7 @@ final class InvoiceConstants
         '0060' => 'DUNS',
         '0088' => 'EAN/GLN',
         '0096' => 'DANISH CVR',
-        '0106' => 'KBO-BCE (Belgique)',
+        '0208' => 'Numero d\'entreprise',
         '0135' => 'SIA (Italie)',
         '0142' => 'SECETI',
         '0184' => 'DIGSTORG (Danemark)',

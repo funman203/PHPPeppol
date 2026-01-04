@@ -49,7 +49,7 @@ class ElectronicAddress
      */
     public static function createBelgianKBO(string $kboNumber): self
     {
-        return new self('0106', $kboNumber);
+        return new self('0208', $kboNumber);
     }
     
     /**
