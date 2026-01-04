@@ -43,6 +43,9 @@ class AttachedDocument
      */
     private int $size;
     
+    
+        private ?string $documentType = null;
+    
     /**
      * Constructeur
      * 
