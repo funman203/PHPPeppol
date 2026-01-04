@@ -128,7 +128,8 @@ final class InvoiceConstants
      * @var array<string, string>
      */
     public const UNIT_CODES = [
-        'C62' => 'Unité (pièce)',
+        'C62' => 'Unité (pièce immatériel)',
+        'H87' => 'Unité (pièce physique)',
         'HUR' => 'Heure',
         'DAY' => 'Jour',
         'MON' => 'Mois',
