@@ -21,10 +21,12 @@ use Peppol\Models\AttachedDocument;
  * @package Peppol\Standards
  * @author Votre Nom
  * @version 1.0
- * @link https://ec.europa.eu/digital-building-blocks/wikis/display/DIGITAL/Compliance+with+eInvoicing+standard
+ * @link https://docs.peppol.eu/poacc/billing/3.0/
  */
 class EN16931Invoice extends InvoiceBase
 {
+ 
+    
     /**
      * Crée une facture EN 16931 avec des méthodes helper simplifiées
      * 
@@ -209,25 +211,7 @@ class EN16931Invoice extends InvoiceBase
         return InvoiceConstants::PROFILE_PEPPOL;
     }
     
-    /**
-     * Définit les conditions de paiement
-     * BT-20 - Obligatoire si date d'échéance non fournie et montant > 0
-     * 
-     * @param string $paymentTerms
-     * @return self
-     */
-    public function setPaymentTerms(string $paymentTerms): self
-    {
-        $this->paymentTerms = $paymentTerms;
-        
-        // Met à jour aussi dans PaymentInfo si elle existe
-        if ($this->paymentInfo !== null) {
-            $this->paymentInfo->setPaymentTerms($paymentTerms);
-        }
-        
-        return $this;
-    }
-     
+
     
     
     

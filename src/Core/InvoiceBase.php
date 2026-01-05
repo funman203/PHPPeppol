@@ -90,6 +90,13 @@ abstract class InvoiceBase
      * @var PaymentInfo|null Informations de paiement (BG-16, BG-17)
      */
     protected ?PaymentInfo $paymentInfo = null;
+
+    /**
+     * @var string|null Conditions de paiement (BT-20)
+     */
+    protected ?string $paymentTerms = null;
+    
+
     
     // === Documents joints ===
     
