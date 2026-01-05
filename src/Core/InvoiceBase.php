@@ -534,4 +534,5 @@ abstract class InvoiceBase
     public function getTaxInclusiveAmount(): float { return $this->taxInclusiveAmount; }
     public function getPayableAmount(): float { return $this->payableAmount; }
     public function getVatBreakdown(): array { return $this->vatBreakdown; }
+    public function getPaymentTerms(): ?string { return $this->paymentTerms; }
 }
