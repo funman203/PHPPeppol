@@ -309,6 +309,25 @@ abstract class InvoiceBase
     }
     
     /**
+     * Définit les conditions de paiement
+     * BT-20 - Obligatoire si date d'échéance non fournie et montant > 0
+     * 
+     * @param string $paymentTerms
+     * @return self
+     */
+    public function setPaymentTerms(string $paymentTerms): self
+    {
+        $this->paymentTerms = $paymentTerms;
+        
+        // Met à jour aussi dans PaymentInfo si elle existe
+        if ($this->paymentInfo !== null) {
+            $this->paymentInfo->setPaymentTerms($paymentTerms);
+        }
+        
+        return $this;
+    }    
+    
+    /**
      * Joint un document
      * 
      * @param AttachedDocument $document
