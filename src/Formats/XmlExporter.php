@@ -136,8 +136,8 @@ class XmlExporter
         
         $this->addElement($xml, $invoice, 'cbc:InvoiceTypeCode', $this->invoice->getInvoiceTypeCode());
         
-        // BT-20: Conditions de paiement (pour UBL.BE)
-        if ($this->invoice instanceof UblBeInvoice && $this->invoice->getPaymentTerms()) {
+        // BT-20: Conditions de paiement
+        if ($this->invoice->getPaymentTerms()) {
             $this->addElement($xml, $invoice, 'cbc:Note', $this->invoice->getPaymentTerms());
         }
         
