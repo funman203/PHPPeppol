@@ -372,7 +372,7 @@ class XmlExporter
     {
         $paymentTermsValue = $this->invoice->getPaymentTerms();
            
-        if ($paymentTerms) {
+        if ($paymentTermsValue) {
             $paymentTerms = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PaymentTerms');
             $this->addElement($xml, $paymentTerms, 'cbc:Note', $paymentTermsValue);            
             $invoice->appendChild($paymentTerms);
