@@ -107,6 +107,8 @@ class XmlExporter
         // Informations de paiement
         $this->addPaymentMeans($xml, $invoice);
         
+        $this->addPaymentTerms($xml, $invoice);
+        
         // Totaux TVA
         $this->addTaxTotals($xml, $invoice);
         
@@ -136,10 +138,13 @@ class XmlExporter
         
         $this->addElement($xml, $invoice, 'cbc:InvoiceTypeCode', $this->invoice->getInvoiceTypeCode());
         
-        // BT-20: Conditions de paiement
-        if ($this->invoice->getPaymentTerms()) {
+        // TODO : FAUX NOTE = Note de factures et pas le PaymentsTerms->Note
+       /* 
+        // BT-20: Conditions de paiement (pour UBL.BE)
+        if ($this->invoice instanceof UblBeInvoice && $this->invoice->getPaymentTerms()) {
             $this->addElement($xml, $invoice, 'cbc:Note', $this->invoice->getPaymentTerms());
         }
+     */
         
         $this->addElement($xml, $invoice, 'cbc:DocumentCurrencyCode', $this->invoice->getDocumentCurrencyCode());
         
@@ -357,6 +362,20 @@ class XmlExporter
             
             $paymentMeans->appendChild($payeeFinancialAccount);
             $invoice->appendChild($paymentMeans);
+        }
+    }
+
+    /**
+     * Ajoute les modalités de paiement si il y en a
+     */
+    private function addPaymentTerms(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        $paymentTermsValue = $this->invoice->getPaymentTerms();
+           
+        if ($paymentTerms) {
+            $paymentTerms = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PaymentTerms');
+            $this->addElement($xml, $paymentTerms, 'cbc:Note', $paymentTermsValue);            
+            $invoice->appendChild($paymentTerms);
         }
     }
     
