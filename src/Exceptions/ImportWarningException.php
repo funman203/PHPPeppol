@@ -55,3 +55,4 @@ class ImportWarningException extends \RuntimeException
     }
 
     /** Écarts entre totaux déclarés (LegalMonetaryTotal) et totaux recalculés. */
+}

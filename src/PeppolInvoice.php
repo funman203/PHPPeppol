@@ -112,12 +112,13 @@ class PeppolInvoice extends EN16931Invoice
      * Importe une facture depuis un fichier ou contenu XML UBL
      * 
      * @param string $xmlContent Contenu XML ou chemin vers un fichier XML
+     * @param bool $strict Validation stricte par défaut
      * @return self
      * @throws \InvalidArgumentException Si le XML est invalide
      */
-    public static function fromXml(string $xmlContent): self
+    public static function fromXml(string $xmlContent, bool $strict = true): self
     {
-        return XmlImporter::fromUbl($xmlContent, self::class);
+         return XmlImporter::fromUbl($xmlContent, self::class, $strict);
     }
     
     /**
