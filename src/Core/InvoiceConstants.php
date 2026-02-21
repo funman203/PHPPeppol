@@ -160,7 +160,8 @@ final class InvoiceConstants
         'FOT' => 'Pied',
         'INH' => 'Pouce',
         'YRD' => 'Yard',
-        'SMI' => 'Mile'
+        'SMI' => 'Mile',
+        'ZZ' => 'Unité définie mutuellement (mutually defined)'
     ];
     
     /**

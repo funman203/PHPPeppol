@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Peppol\Core;
 
+use Peppol\Exceptions\ImportWarningException;
 use Peppol\Models\Party;
 use Peppol\Models\InvoiceLine;
 use Peppol\Models\VatBreakdown;
@@ -125,6 +126,16 @@ abstract class InvoiceBase {
      * @var array<string, VatBreakdown> Ventilation par taux de TVA (BG-23)
      */
     protected array $vatBreakdown = [];
+
+// === Totaux importés (mode lenient) ===
+
+    /**
+     * Totaux tels que déclarés dans LegalMonetaryTotal du XML source.
+     * Null si non chargé (import strict ou facture créée programmatiquement).
+     *
+     * @var array{lineExtension: float, taxExclusive: float, taxInclusive: float, prepaid: float, payable: float, taxAmount: float}|null
+     */
+    private ?array $importedTotals = null;
 
     /**
      * Constructeur
@@ -374,6 +385,75 @@ abstract class InvoiceBase {
         $this->payableAmount = $this->taxInclusiveAmount;
 
         return $this;
+    }
+
+// =========================================================================
+// Import lenient — gestion des totaux déclarés
+// =========================================================================
+
+    public function setImportedTotals(
+            float $lineExtension,
+            float $taxExclusive,
+            float $taxInclusive,
+            float $prepaid,
+            float $payable,
+            float $taxAmount
+    ): void {
+        $this->importedTotals = [
+            'lineExtension' => $lineExtension,
+            'taxExclusive' => $taxExclusive,
+            'taxInclusive' => $taxInclusive,
+            'prepaid' => $prepaid,
+            'payable' => $payable,
+            'taxAmount' => $taxAmount,
+        ];
+    }
+
+    public function getImportedTotals(): ?array {
+        return $this->importedTotals;
+    }
+
+    /**
+     * Compare les totaux déclarés (LegalMonetaryTotal) aux totaux recalculés
+     * depuis les lignes. Retourne un tableau d'écarts si > seuil (défaut 0.02).
+     *
+     * @return array<string, array{declared: float, calculated: float, diff: float}>
+     */
+    public function checkImportedTotals(float $threshold = 0.02): array {
+        if ($this->importedTotals === null) {
+            return [];
+        }
+
+        $recalcTaxExclusive = 0.0;
+        $recalcTaxAmount = 0.0;
+        foreach ($this->invoiceLines as $line) {
+            $recalcTaxExclusive += $line->getLineAmount();
+            $recalcTaxAmount += $line->getLineVatAmount();
+        }
+        $recalcTaxExclusive = round($recalcTaxExclusive, 2);
+        $recalcTaxAmount = round($recalcTaxAmount, 2);
+        $recalcTaxInclusive = round($recalcTaxExclusive + $recalcTaxAmount, 2);
+
+        $candidates = [
+            'taxExclusive' => $recalcTaxExclusive,
+            'taxInclusive' => $recalcTaxInclusive,
+            'taxAmount' => $recalcTaxAmount,
+        ];
+
+        $warnings = [];
+        foreach ($candidates as $key => $calcValue) {
+            $declared = $this->importedTotals[$key];
+            $diff = abs($declared - $calcValue);
+            if ($diff > $threshold) {
+                $warnings[$key] = [
+                    'declared' => $declared,
+                    'calculated' => $calcValue,
+                    'diff' => $diff,
+                ];
+            }
+        }
+
+        return $warnings;
     }
 
     /**

@@ -13,6 +13,7 @@ use Peppol\Models\Party;
 use Peppol\Models\InvoiceLine;
 use Peppol\Models\PaymentInfo;
 use Peppol\Models\AttachedDocument;
+use Peppol\Exceptions\ImportWarningException;
 
 /**
  * Importateur XML UBL 2.1
@@ -33,7 +34,7 @@ class XmlImporter
      * @return InvoiceBase
      * @throws \InvalidArgumentException
      */
-    public static function fromUbl(string $xmlContent, ?string $targetClass = null): InvoiceBase
+    public static function fromUbl(string $xmlContent, ?string $targetClass = null, bool $strict = true): InvoiceBase
     {
         // Si c'est un chemin de fichier, on lit son contenu
         if (file_exists($xmlContent)) {
@@ -84,20 +85,40 @@ class XmlImporter
         self::loadSeller($invoice, $xpath);
         self::loadBuyer($invoice, $xpath);
         
+        // Collecteur d'anomalies (mode lenient)
+        $anomalies = [];
+
         // Chargement des informations de paiement
-        self::loadPaymentInfo($invoice, $xpath);
-        
+        self::loadPaymentInfo($invoice, $xpath, $strict, $anomalies);
+
         // Chargement des documents joints
         self::loadAttachedDocuments($invoice, $xpath);
-        
+
         // Chargement des lignes de facture
-        self::loadInvoiceLines($invoice, $xpath);
-        
-        // Calcul des totaux si des lignes ont été chargées
-        if (!empty($invoice->getInvoiceLines())) {
-            $invoice->calculateTotals();
+        self::loadInvoiceLines($invoice, $xpath, $strict, $anomalies);
+
+        if ($strict) {
+            // Comportement original : recalcul + validation
+            if (!empty($invoice->getInvoiceLines())) {
+                $invoice->calculateTotals();
+            }
+        } else {
+            // Mode lenient : totaux depuis le XML
+            self::loadDeclaredTotals($invoice, $xpath);
+
+            // Recalcul pour comparaison (si des lignes ont été chargées)
+            if (!empty($invoice->getInvoiceLines())) {
+                $invoice->calculateTotals();
+            }
+
+            // Vérification de cohérence
+            $warnings = $invoice->checkImportedTotals();
+
+            if (!empty($warnings) || !empty($anomalies)) {
+                throw new ImportWarningException($invoice, $warnings, $anomalies);
+            }
         }
-        
+
         // Chargement des données spécifiques UBL.BE
         if ($invoice instanceof UblBeInvoice) {
             self::loadUblBeSpecificData($invoice, $xpath);
@@ -245,29 +266,6 @@ class XmlImporter
     }
     
     /**
-     * Charge les informations de paiement
-     */
-    private static function loadPaymentInfo(InvoiceBase $invoice, \DOMXPath $xpath): void
-    {
-        $iban = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID');
-        if (!$iban) {
-            return;
-        }
-        
-        $paymentMeansCode = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentMeansCode', '30');
-        $bic = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cbc:ID');
-        $paymentRef = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentID');
-        $paymentTerms = self::getXPathValue($xpath, '//cbc:Note');
-        
-        try {
-            $paymentInfo = new PaymentInfo($paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms);
-            $invoice->setPaymentInfo($paymentInfo);
-        } catch (\Exception $e) {
-            // Ignore si invalide
-        }
-    }
-    
-    /**
      * Charge les documents joints
      */
     private static function loadAttachedDocuments(InvoiceBase $invoice, \DOMXPath $xpath): void
@@ -308,39 +306,112 @@ class XmlImporter
         }
     }
     
-    /**
-     * Charge les lignes de facture
+/**
+     * Charge les informations de paiement.
+     * En mode lenient : BIC invalide ne rejette plus tout le bloc.
      */
-    private static function loadInvoiceLines(InvoiceBase $invoice, \DOMXPath $xpath): void
+    private static function loadPaymentInfo(InvoiceBase $invoice, \DOMXPath $xpath, bool $strict, array &$anomalies): void
+    {
+        $iban = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID');
+        if (!$iban) {
+            return;
+        }
+
+        $paymentMeansCode = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentMeansCode', '30');
+        $bic = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cbc:ID');
+        $paymentRef = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentID');
+        $paymentTerms = self::getXPathValue($xpath, '//cbc:Note');
+
+        try {
+            $paymentInfo = new PaymentInfo($paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms);
+            $invoice->setPaymentInfo($paymentInfo);
+        } catch (\InvalidArgumentException $e) {
+            if ($strict) {
+                throw $e;
+            }
+            // Mode lenient : on charge avec BIC brut
+            try {
+                $paymentInfo = PaymentInfo::withRawBic($paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms);
+                $invoice->setPaymentInfo($paymentInfo);
+                $anomalies[] = sprintf(
+                    'Paiement : BIC invalide « %s » chargé tel quel — %s',
+                    $bic ?? '',
+                    $e->getMessage()
+                );
+            } catch (\Exception $e2) {
+                $anomalies[] = 'Bloc paiement ignoré : ' . $e2->getMessage();
+            }
+        }
+    }
+
+    /**
+     * Lit LegalMonetaryTotal depuis le XML et stocke via setImportedTotals().
+     * Appelé uniquement en mode lenient.
+     */
+    private static function loadDeclaredTotals(InvoiceBase $invoice, \DOMXPath $xpath): void
+    {
+        $lineExtension = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:LineExtensionAmount', '0');
+        $taxExclusive  = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount',  '0');
+        $taxInclusive  = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount',  '0');
+        $prepaid       = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PrepaidAmount',       '0');
+        $payable       = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PayableAmount',       '0');
+        $taxAmount     = (float) self::getXPathValue($xpath, '//cac:TaxTotal/cbc:TaxAmount',                    '0');
+
+        $invoice->setImportedTotals($lineExtension, $taxExclusive, $taxInclusive, $prepaid, $payable, $taxAmount);
+    }
+
+    /**
+     * Charge les lignes de facture.
+     * En mode lenient : unitCode inconnu accepté via Reflection.
+     */
+    private static function loadInvoiceLines(InvoiceBase $invoice, \DOMXPath $xpath, bool $strict, array &$anomalies): void
     {
         $lines = $xpath->query('//cac:InvoiceLine');
-        
+
         foreach ($lines as $lineNode) {
             $lineId = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
             $lineName = self::getXPathValue($xpath, 'cac:Item/cbc:Name', null, $lineNode);
-            
+
             if (!$lineId || !$lineName) {
                 continue;
             }
-            
+
             $quantityNode = $xpath->query('cbc:InvoicedQuantity', $lineNode)->item(0);
             $quantity = $quantityNode ? (float)$quantityNode->nodeValue : 0;
             $unitCode = $quantityNode?->getAttribute('unitCode') ?? 'C62';
-            
+
             $unitPrice = (float)self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
             $vatCategory = self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', 'S', $lineNode);
             $vatRate = (float)self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
             $description = self::getXPathValue($xpath, 'cac:Item/cbc:Description', null, $lineNode);
-            
+
             if ($quantity <= 0) {
                 continue;
             }
-            
+
             try {
                 $line = new InvoiceLine($lineId, $lineName, $quantity, $unitCode, $unitPrice, $vatCategory, $vatRate, $description);
                 $invoice->addInvoiceLine($line);
-            } catch (\Exception $e) {
-                // Ignore si ligne invalide
+            } catch (\InvalidArgumentException $e) {
+                if ($strict) {
+                    throw $e;
+                }
+                // Mode lenient : on crée la ligne avec C62 puis on injecte le vrai unitCode
+                try {
+                    $line = new InvoiceLine($lineId, $lineName, $quantity, 'C62', $unitPrice, $vatCategory, $vatRate, $description);
+                    $ref = new \ReflectionProperty(InvoiceLine::class, 'unitCode');
+                    $ref->setAccessible(true);
+                    $ref->setValue($line, $unitCode);
+                    $invoice->addInvoiceLine($line);
+                    $anomalies[] = sprintf(
+                        'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
+                        $lineId,
+                        $unitCode,
+                        $e->getMessage()
+                    );
+                } catch (\Exception $e2) {
+                    $anomalies[] = sprintf('Ligne %s ignorée : %s', $lineId, $e2->getMessage());
+                }
             }
         }
     }
