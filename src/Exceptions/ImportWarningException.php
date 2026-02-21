@@ -55,4 +55,14 @@ class ImportWarningException extends \RuntimeException
     }
 
     /** Écarts entre totaux déclarés (LegalMonetaryTotal) et totaux recalculés. */
+    public function getWarnings(): array
+   {
+        return $this->warnings;
+    }
+
+    /** Champs invalides qui ont été chargés tels quels (BIC malformé, unitCode inconnu, etc.). */
+    public function getAnomalies(): array
+    {
+        return $this->anomalies;
+    }
 }
