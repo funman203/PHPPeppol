@@ -358,6 +358,7 @@ class XmlImporter
         $taxAmount     = (float) self::getXPathValue($xpath, '//cac:TaxTotal/cbc:TaxAmount',                    '0');
 
         $invoice->setImportedTotals($lineExtension, $taxExclusive, $taxInclusive, $prepaid, $payable, $taxAmount);
+        $invoice->setPrepaidAmount($prepaid);
     }
 
     /**

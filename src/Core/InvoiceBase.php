@@ -123,6 +123,11 @@ abstract class InvoiceBase implements \JsonSerializable {
     protected float $payableAmount = 0.0;
 
     /**
+     * @var float Montant prépayé (BT-113)
+     */
+    protected float $prepaidAmount = 0.0;
+
+    /**
      * @var array<string, VatBreakdown> Ventilation par taux de TVA (BG-23)
      */
     protected array $vatBreakdown = [];
@@ -338,6 +343,25 @@ abstract class InvoiceBase implements \JsonSerializable {
     }
 
     /**
+     * Définit le montant prépayé (BT-113).
+     * Recalcule automatiquement le payableAmount.
+     *
+     * @param float $prepaidAmount
+     * @return self
+     */
+    public function setPrepaidAmount(float $prepaidAmount): self {
+        $this->prepaidAmount = $prepaidAmount;
+        if ($this->taxInclusiveAmount > 0.0) {
+            $this->payableAmount = round($this->taxInclusiveAmount - $this->prepaidAmount, 2);
+        }
+        return $this;
+    }
+
+    public function getPrepaidAmount(): float {
+        return $this->prepaidAmount;
+    }
+
+    /**
      * Calcule les totaux de la facture
      * BR-CO-13: Les montants doivent être cohérents
      * 
@@ -382,7 +406,7 @@ abstract class InvoiceBase implements \JsonSerializable {
 
         $this->taxExclusiveAmount = round($this->taxExclusiveAmount, 2);
         $this->taxInclusiveAmount = round($this->taxExclusiveAmount + $totalVat, 2);
-        $this->payableAmount = $this->taxInclusiveAmount;
+        $this->payableAmount = round($this->taxInclusiveAmount - $this->prepaidAmount, 2);
 
         return $this;
     }
@@ -576,7 +600,7 @@ abstract class InvoiceBase implements \JsonSerializable {
                 'taxExclusiveAmount' => $this->taxExclusiveAmount,
                 'taxInclusiveAmount' => $this->taxInclusiveAmount,
                 'taxAmount' => round($this->taxInclusiveAmount - $this->taxExclusiveAmount, 2),
-                'prepaidAmount' => $this->importedTotals['prepaid'] ?? 0.0,
+                'prepaidAmount' => $this->prepaidAmount,
                 'payableAmount' => $this->payableAmount
             ],
             'vatBreakdown' => array_map(fn($vat) => $vat->toArray(), array_values($this->vatBreakdown)),
