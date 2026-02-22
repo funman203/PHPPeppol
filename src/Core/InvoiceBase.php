@@ -21,7 +21,7 @@ use Peppol\Models\AttachedDocument;
  * @author Votre Nom
  * @version 1.0
  */
-abstract class InvoiceBase {
+abstract class InvoiceBase implements \JsonSerializable {
 
     use InvoiceValidatorTrait;
 
@@ -548,6 +548,10 @@ abstract class InvoiceBase {
         }
 
         return $errors;
+    }
+
+    public function jsonSerialize(): mixed {
+        return $this->toArray();
     }
 
     /**
