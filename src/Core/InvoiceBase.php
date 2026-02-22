@@ -575,6 +575,8 @@ abstract class InvoiceBase implements \JsonSerializable {
             'totals' => [
                 'taxExclusiveAmount' => $this->taxExclusiveAmount,
                 'taxInclusiveAmount' => $this->taxInclusiveAmount,
+                'taxAmount' => round($this->taxInclusiveAmount - $this->taxExclusiveAmount, 2),
+                'prepaidAmount' => $this->importedTotals['prepaid'] ?? 0.0,
                 'payableAmount' => $this->payableAmount
             ],
             'vatBreakdown' => array_map(fn($vat) => $vat->toArray(), array_values($this->vatBreakdown)),
