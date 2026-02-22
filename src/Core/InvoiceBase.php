@@ -605,7 +605,11 @@ abstract class InvoiceBase implements \JsonSerializable {
             ],
             'vatBreakdown' => array_map(fn($vat) => $vat->toArray(), array_values($this->vatBreakdown)),
             'payment' => $this->paymentInfo?->toArray(),
-            'attachedDocuments' => array_map(fn($doc) => $doc->toArray(), $this->attachedDocuments)
+            'attachedDocuments' => array_map(fn($doc) => [
+                'filename' => $doc->getFilename(),
+                'mimeType' => $doc->getMimeType(),
+                'description' => $doc->getDescription(),
+                    ], $this->attachedDocuments)
         ];
     }
 

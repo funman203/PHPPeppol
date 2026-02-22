@@ -273,13 +273,7 @@ class XmlImporter
         $attachedDocs = $xpath->query('//cac:AdditionalDocumentReference');
         
         foreach ($attachedDocs as $docNode) {
-            $docId = self::getXPathValue($xpath, 'cbc:ID', null, $docNode);
-            
-            // Ignore les références qui ne sont pas des pièces jointes
-            if ($docId !== 'Attachment') {
-                continue;
-            }
-            
+                        
             $embeddedDocNode = $xpath->query('cac:Attachment/cbc:EmbeddedDocumentBinaryObject', $docNode)->item(0);
             if (!$embeddedDocNode) {
                 continue;
