@@ -632,133 +632,93 @@ class XmlImporter {
         $lines = $xpath->query('//cac:InvoiceLine');
 
         foreach ($lines as $lineNode) {
-            $lineId = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
+            $lineId   = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
             $lineName = self::getXPathValue($xpath, 'cac:Item/cbc:Name', null, $lineNode);
 
             if (!$lineId || !$lineName) {
-                continue; // Ligne sans ID ou nom — ignorée
+                continue;
             }
 
-            // Quantité et unité
             $quantityNode = $xpath->query('cbc:InvoicedQuantity', $lineNode)->item(0);
-            $quantity = $quantityNode ? (float) $quantityNode->nodeValue : 0;
-            $unitCode = $quantityNode?->getAttribute('unitCode') ?? 'C62';
+            $quantity     = $quantityNode ? (float) $quantityNode->nodeValue : 0;
+            $unitCode     = $quantityNode?->getAttribute('unitCode') ?? 'C62';
 
             if ($quantity <= 0) {
-                continue; // Quantité nulle ou négative — ignorée
+                continue;
             }
 
-            $unitPrice = (float) self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
+            $unitPrice   = (float) self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
             $vatCategory = self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', 'S', $lineNode);
-            $vatRate = (float) self::getXPathValue($xpath,
-                            'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
+            $vatRate     = (float) self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
             $description = self::getXPathValue($xpath, 'cac:Item/cbc:Description', null, $lineNode);
 
+            // Création de la ligne
+            $line = null;
             try {
                 $line = new InvoiceLine(
-                        $lineId, $lineName, $quantity, $unitCode,
-                        $unitPrice, $vatCategory, $vatRate, $description
+                    $lineId, $lineName, $quantity, $unitCode,
+                    $unitPrice, $vatCategory, $vatRate, $description
                 );
-                $invoice->addInvoiceLine($line);
             } catch (\InvalidArgumentException $e) {
                 if ($strict) {
                     throw $e;
                 }
-
-                // Mode lenient : création avec C62 puis injection du vrai unitCode via Reflection
+                // Mode lenient : unitCode non standard → injection via Reflection
                 try {
                     $line = new InvoiceLine(
-                            $lineId, $lineName, $quantity, 'C62',
-                            $unitPrice, $vatCategory, $vatRate, $description
+                        $lineId, $lineName, $quantity, 'C62',
+                        $unitPrice, $vatCategory, $vatRate, $description
                     );
                     $ref = new \ReflectionProperty(InvoiceLine::class, 'unitCode');
                     $ref->setAccessible(true);
                     $ref->setValue($line, $unitCode);
-                    $invoice->addInvoiceLine($line);
                     $anomalies[] = sprintf(
-                            'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
-                            $lineId,
-                            $unitCode,
-                            $e->getMessage()
+                        'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
+                        $lineId, $unitCode, $e->getMessage()
                     );
-                    // BG-28 — Remises et majorations au niveau ligne
-                    $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
-                    foreach ($lineAcs as $lacNode) {
-                        $lacChargeIndicator = strtolower(
-                                        self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
-                                ) === 'true';
-                        $lacAmount = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
-                        $lacBase = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
-                        $lacPercent = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
-                        $lacReasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $lacNode);
-                        $lacReason = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
-                        $lacVatCat = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
-                        $lacVatRate = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
-
-                        try {
-                            $lac = new AllowanceCharge(
-                                    $lacChargeIndicator,
-                                    $lacAmount,
-                                    $lacVatCat,
-                                    $lacVatRate,
-                                    $lacBase !== null ? (float) $lacBase : null,
-                                    $lacPercent !== null ? (float) $lacPercent : null,
-                                    $lacReasonCode,
-                                    $lacReason
-                            );
-                            $line->addAllowanceCharge($lac);
-                        } catch (\InvalidArgumentException $e) {
-                            if ($strict) {
-                                throw $e;
-                            }
-                            $anomalies[] = sprintf(
-                                    'Ligne %s — AllowanceCharge ignoré : %s',
-                                    $lineId,
-                                    $e->getMessage()
-                            );
-                        }
-                    }
                 } catch (\Exception $e2) {
-// BG-28 — Remises et majorations au niveau ligne
-                    $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
-                    foreach ($lineAcs as $lacNode) {
-                        $lacChargeIndicator = strtolower(
-                                        self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
-                                ) === 'true';
-                        $lacAmount = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
-                        $lacBase = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
-                        $lacPercent = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
-                        $lacReasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $lacNode);
-                        $lacReason = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
-                        $lacVatCat = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
-                        $lacVatRate = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
-
-                        try {
-                            $lac = new AllowanceCharge(
-                                    $lacChargeIndicator,
-                                    $lacAmount,
-                                    $lacVatCat,
-                                    $lacVatRate,
-                                    $lacBase !== null ? (float) $lacBase : null,
-                                    $lacPercent !== null ? (float) $lacPercent : null,
-                                    $lacReasonCode,
-                                    $lacReason
-                            );
-                            $line->addAllowanceCharge($lac);
-                        } catch (\InvalidArgumentException $e) {
-                            if ($strict) {
-                                throw $e;
-                            }
-                            $anomalies[] = sprintf(
-                                    'Ligne %s — AllowanceCharge ignoré : %s',
-                                    $lineId,
-                                    $e->getMessage()
-                            );
-                        }
-                    }
                     $anomalies[] = sprintf('Ligne %s ignorée : %s', $lineId, $e2->getMessage());
                 }
             }
+
+            if ($line === null) {
+                continue;
+            }
+
+            // BG-28 — Remises et majorations au niveau ligne
+            $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
+            foreach ($lineAcs as $lacNode) {
+                $lacChargeIndicator = strtolower(
+                    self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
+                ) === 'true';
+                $lacAmount     = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
+                $lacBase       = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
+                $lacPercent    = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
+                $lacReasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $lacNode);
+                $lacReason     = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
+                $lacVatCat     = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
+                $lacVatRate    = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
+
+                try {
+                    $lac = new AllowanceCharge(
+                        $lacChargeIndicator, $lacAmount, $lacVatCat, $lacVatRate,
+                        $lacBase    !== null ? (float) $lacBase    : null,
+                        $lacPercent !== null ? (float) $lacPercent : null,
+                        $lacReasonCode, $lacReason
+                    );
+                    $line->addAllowanceCharge($lac);
+                } catch (\InvalidArgumentException $e) {
+                    if ($strict) {
+                        throw $e;
+                    }
+                    $anomalies[] = sprintf(
+                        'Ligne %s — AllowanceCharge ignoré : %s',
+                        $lineId, $e->getMessage()
+                    );
+                }
+            }
+
+            $invoice->addInvoiceLine($line);
         }
     }
 
