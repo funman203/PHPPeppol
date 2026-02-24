@@ -10,119 +10,86 @@ use Peppol\Standards\UblBeInvoice;
 
 /**
  * Exportateur XML UBL 2.1
- * 
+ *
  * Génère un document XML UBL 2.1 conforme à la norme EN 16931
  * et aux spécifications Peppol BIS ou UBL.BE
- * 
+ *
  * @package Peppol\Formats
- * @author Votre Nom
- * @version 1.0
+ * @version 1.1
  */
-class XmlExporter {
-
-    /**
-     * @var InvoiceBase Facture à exporter
-     */
+class XmlExporter
+{
     private InvoiceBase $invoice;
-
-    /**
-     * @var string Identifiant de customisation
-     */
     private string $customizationId;
-
-    /**
-     * @var string Identifiant de profil
-     */
     private string $profileId;
 
-    /**
-     * Constructeur
-     * 
-     * @param InvoiceBase $invoice Facture à exporter
-     * @param string|null $customizationId Identifiant de customisation (auto-détecté si null)
-     * @param string|null $profileId Identifiant de profil
-     */
     public function __construct(
-            InvoiceBase $invoice,
-            ?string $customizationId = null,
-            ?string $profileId = null
+        InvoiceBase $invoice,
+        ?string $customizationId = null,
+        ?string $profileId = null
     ) {
-        $this->invoice = $invoice;
+        $this->invoice         = $invoice;
         $this->customizationId = $customizationId ?? $this->detectCustomizationId();
-        $this->profileId = $profileId ?? InvoiceConstants::PROFILE_PEPPOL;
+        $this->profileId       = $profileId ?? InvoiceConstants::PROFILE_PEPPOL;
     }
 
-    /**
-     * Détecte automatiquement l'identifiant de customisation selon le type de facture
-     * 
-     * @return string
-     */
-    private function detectCustomizationId(): string {
+    private function detectCustomizationId(): string
+    {
         if ($this->invoice instanceof UblBeInvoice) {
             return InvoiceConstants::CUSTOMIZATION_UBL_BE;
         }
-
         return InvoiceConstants::CUSTOMIZATION_PEPPOL;
     }
 
-    /**
-     * Exporte la facture au format XML UBL 2.1
-     * 
-     * @return string XML UBL
-     * @throws \InvalidArgumentException Si la facture n'est pas valide
-     */
-    public function toUbl21(): string {
-        // Validation préalable
+    // =========================================================================
+    // Export principal
+    // =========================================================================
+
+    public function toUbl21(): string
+    {
         $errors = $this->invoice->validate();
         if (!empty($errors)) {
             throw new \InvalidArgumentException(
-                            'Impossible d\'exporter une facture invalide. Erreurs: ' . implode(', ', $errors)
-                    );
+                'Impossible d\'exporter une facture invalide. Erreurs: ' . implode(', ', $errors)
+            );
         }
 
         $xml = new \DOMDocument('1.0', 'UTF-8');
         $xml->formatOutput = true;
 
-        // Élément racine Invoice avec namespaces
-        $invoice = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
-        $invoice->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
-        $invoice->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $invoice = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
+            'Invoice'
+        );
+        $invoice->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac',
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $invoice->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc',
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
         $xml->appendChild($invoice);
 
-        // En-tête du document
         $this->addDocumentHeader($xml, $invoice);
-
-        // Références
+        $this->addPrecedingInvoiceReference($xml, $invoice);
         $this->addReferences($xml, $invoice);
-
-        // Documents joints
         $this->addAttachedDocuments($xml, $invoice);
-
-        // Parties (Vendeur et Acheteur)
         $this->addSellerParty($xml, $invoice);
         $this->addBuyerParty($xml, $invoice);
-
-        // Informations de paiement
+        $this->addDelivery($xml, $invoice);
         $this->addPaymentMeans($xml, $invoice);
-
         $this->addPaymentTerms($xml, $invoice);
-
-        // Totaux TVA
+        $this->addAllowanceCharges($xml, $invoice);
         $this->addTaxTotals($xml, $invoice);
-
-        // Totaux monétaires
         $this->addMonetaryTotals($xml, $invoice);
-
-        // Lignes de facture
         $this->addInvoiceLines($xml, $invoice);
 
         return $xml->saveXML();
     }
 
-    /**
-     * Ajoute l'en-tête du document
-     */
-    private function addDocumentHeader(\DOMDocument $xml, \DOMElement $invoice): void {
+    // =========================================================================
+    // En-tête
+    // =========================================================================
+
+    private function addDocumentHeader(\DOMDocument $xml, \DOMElement $invoice): void
+    {
         $this->addElement($xml, $invoice, 'cbc:UBLVersionID', InvoiceConstants::UBL_VERSION);
         $this->addElement($xml, $invoice, 'cbc:CustomizationID', $this->customizationId);
         $this->addElement($xml, $invoice, 'cbc:ProfileID', $this->profileId);
@@ -135,47 +102,123 @@ class XmlExporter {
 
         $this->addElement($xml, $invoice, 'cbc:InvoiceTypeCode', $this->invoice->getInvoiceTypeCode());
 
-        // TODO : FAUX NOTE = Note de factures et pas le PaymentsTerms->Note
-        /*
-          // BT-20: Conditions de paiement (pour UBL.BE)
-          if ($this->invoice instanceof UblBeInvoice && $this->invoice->getPaymentTerms()) {
-          $this->addElement($xml, $invoice, 'cbc:Note', $this->invoice->getPaymentTerms());
-          }
-         */
+        // BT-22 — Note de facture
+        if ($this->invoice->getInvoiceNote()) {
+            $this->addElement($xml, $invoice, 'cbc:Note', $this->invoice->getInvoiceNote());
+        }
 
         $this->addElement($xml, $invoice, 'cbc:DocumentCurrencyCode', $this->invoice->getDocumentCurrencyCode());
 
+        // BT-19 — Référence comptable acheteur
+        if ($this->invoice->getBuyerAccountingReference()) {
+            $this->addElement($xml, $invoice, 'cbc:AccountingCost', $this->invoice->getBuyerAccountingReference());
+        }
+
+        // BT-10 — Référence acheteur
         if ($this->invoice->getBuyerReference()) {
             $this->addElement($xml, $invoice, 'cbc:BuyerReference', $this->invoice->getBuyerReference());
         }
     }
 
-    /**
-     * Ajoute les références
-     */
-    private function addReferences(\DOMDocument $xml, \DOMElement $invoice): void {
-        if ($this->invoice->getPurchaseOrderReference()) {
-            $orderRef = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:OrderReference');
-            $this->addElement($xml, $orderRef, 'cbc:ID', $this->invoice->getPurchaseOrderReference());
+    // =========================================================================
+    // BG-3 — Référence facture précédente
+    // =========================================================================
+
+    private function addPrecedingInvoiceReference(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        if ($this->invoice->getPrecedingInvoiceNumber() === null) {
+            return;
+        }
+
+        $billingRef = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:BillingReference'
+        );
+        $invoiceDocRef = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:InvoiceDocumentReference'
+        );
+        $this->addElement($xml, $invoiceDocRef, 'cbc:ID', $this->invoice->getPrecedingInvoiceNumber());
+        if ($this->invoice->getPrecedingInvoiceDate()) {
+            $this->addElement($xml, $invoiceDocRef, 'cbc:IssueDate', $this->invoice->getPrecedingInvoiceDate());
+        }
+        $billingRef->appendChild($invoiceDocRef);
+        $invoice->appendChild($billingRef);
+    }
+
+    // =========================================================================
+    // Références (BT-11 … BT-16)
+    // =========================================================================
+
+    private function addReferences(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        // BT-13 / BT-14 — OrderReference
+        if ($this->invoice->getPurchaseOrderReference() || $this->invoice->getSalesOrderReference()) {
+            $orderRef = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:OrderReference'
+            );
+            if ($this->invoice->getPurchaseOrderReference()) {
+                $this->addElement($xml, $orderRef, 'cbc:ID', $this->invoice->getPurchaseOrderReference());
+            }
+            if ($this->invoice->getSalesOrderReference()) {
+                $this->addElement($xml, $orderRef, 'cbc:SalesOrderID', $this->invoice->getSalesOrderReference());
+            }
             $invoice->appendChild($orderRef);
         }
 
+        // BT-16 — DespatchDocumentReference
+        if ($this->invoice->getDespatchAdviceReference()) {
+            $ref = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:DespatchDocumentReference'
+            );
+            $this->addElement($xml, $ref, 'cbc:ID', $this->invoice->getDespatchAdviceReference());
+            $invoice->appendChild($ref);
+        }
+
+        // BT-15 — ReceiptDocumentReference
+        if ($this->invoice->getReceivingAdviceReference()) {
+            $ref = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:ReceiptDocumentReference'
+            );
+            $this->addElement($xml, $ref, 'cbc:ID', $this->invoice->getReceivingAdviceReference());
+            $invoice->appendChild($ref);
+        }
+
+        // BT-12 — ContractDocumentReference
         if ($this->invoice->getContractReference()) {
-            $contractRef = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:ContractDocumentReference');
+            $contractRef = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:ContractDocumentReference'
+            );
             $this->addElement($xml, $contractRef, 'cbc:ID', $this->invoice->getContractReference());
             $invoice->appendChild($contractRef);
         }
+
+        // BT-11 — ProjectReference
+        if ($this->invoice->getProjectReference()) {
+            $projRef = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:ProjectReference'
+            );
+            $this->addElement($xml, $projRef, 'cbc:ID', $this->invoice->getProjectReference());
+            $invoice->appendChild($projRef);
+        }
     }
 
-    /**
-     * Ajoute les documents joints
-     */
-    private function addAttachedDocuments(\DOMDocument $xml, \DOMElement $invoice): void {
-        $documents = $this->invoice->getAttachedDocuments();
-        $docsCount = count($documents);
+    // =========================================================================
+    // Documents joints
+    // =========================================================================
 
-        foreach ($documents as $doc) {
-            $additionalDoc = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:AdditionalDocumentReference');
+    private function addAttachedDocuments(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        foreach ($this->invoice->getAttachedDocuments() as $doc) {
+            $additionalDoc = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:AdditionalDocumentReference'
+            );
 
             $this->addElement($xml, $additionalDoc, 'cbc:ID', 'Attachment');
 
@@ -183,8 +226,15 @@ class XmlExporter {
                 $this->addElement($xml, $additionalDoc, 'cbc:DocumentDescription', $doc->getDescription());
             }
 
-            $attachment = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Attachment');
-            $embeddedDoc = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:EmbeddedDocumentBinaryObject', $doc->getContent());
+            $attachment = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:Attachment'
+            );
+            $embeddedDoc = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:EmbeddedDocumentBinaryObject',
+                $doc->getContent()
+            );
             $embeddedDoc->setAttribute('mimeCode', $doc->getMimeType());
             $embeddedDoc->setAttribute('filename', $doc->getFilename());
             $attachment->appendChild($embeddedDoc);
@@ -193,67 +243,78 @@ class XmlExporter {
         }
     }
 
-    /**
-     * Ajoute un document de référence fictif (pour UBL.BE)
-     */
-    private function addPlaceholderDocument(\DOMDocument $xml, \DOMElement $invoice, string $id, string $type, string $description): void {
-        $additionalDoc = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:AdditionalDocumentReference');
-        $this->addElement($xml, $additionalDoc, 'cbc:ID', $id);
-        $this->addElement($xml, $additionalDoc, 'cbc:DocumentTypeCode', $type);
-        $this->addElement($xml, $additionalDoc, 'cbc:DocumentDescription', $description);
-        $invoice->appendChild($additionalDoc);
-    }
+    // =========================================================================
+    // Parties
+    // =========================================================================
 
-    /**
-     * Ajoute la partie vendeur
-     */
-    private function addSellerParty(\DOMDocument $xml, \DOMElement $invoice): void {
-        $seller = $this->invoice->getSeller();
+    private function addSellerParty(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        $seller       = $this->invoice->getSeller();
+        $supplierParty = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:AccountingSupplierParty'
+        );
+        $party = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:Party'
+        );
 
-        $supplierParty = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:AccountingSupplierParty');
-        $party = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Party');
-
-        // Adresse électronique
         if ($seller->getElectronicAddress()) {
-            $endpoint = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:EndpointID', $seller->getElectronicAddress()->getIdentifier());
+            $endpoint = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:EndpointID',
+                $seller->getElectronicAddress()->getIdentifier()
+            );
             $endpoint->setAttribute('schemeID', $seller->getElectronicAddress()->getSchemeId());
             $party->appendChild($endpoint);
         }
 
-        // Identifiant entreprise
         if ($seller->getCompanyId()) {
-            $partyId = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyIdentification');
+            $partyId = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:PartyIdentification'
+            );
             $this->addElement($xml, $partyId, 'cbc:ID', $seller->getCompanyId());
             $party->appendChild($partyId);
         }
 
-        // Nom
-        $partyName = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyName');
+        $partyName = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PartyName'
+        );
         $this->addElement($xml, $partyName, 'cbc:Name', $seller->getName());
         $party->appendChild($partyName);
 
-        // Adresse postale
         $this->addPostalAddress($xml, $party, $seller->getAddress());
 
-        // TVA
-        $partyTaxScheme = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyTaxScheme');
-        $this->addElement($xml, $partyTaxScheme, 'cbc:CompanyID', $seller->getVatId());
-        $taxScheme = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxScheme');
+        $partyTaxScheme = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PartyTaxScheme'
+        );
+        $this->addElement($xml, $partyTaxScheme, 'cbc:CompanyID', $seller->getVatId() ?? '');
+        $taxScheme = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:TaxScheme'
+        );
         $this->addElement($xml, $taxScheme, 'cbc:ID', 'VAT');
         $partyTaxScheme->appendChild($taxScheme);
         $party->appendChild($partyTaxScheme);
 
-        // Entité légale
-        $partyLegalEntity = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyLegalEntity');
+        $partyLegalEntity = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PartyLegalEntity'
+        );
         $this->addElement($xml, $partyLegalEntity, 'cbc:RegistrationName', $seller->getName());
         if ($seller->getCompanyId()) {
             $this->addElement($xml, $partyLegalEntity, 'cbc:CompanyID', $seller->getCompanyId());
         }
         $party->appendChild($partyLegalEntity);
 
-        // Contact
         if ($seller->getEmail()) {
-            $contact = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Contact');
+            $contact = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:Contact'
+            );
             $this->addElement($xml, $contact, 'cbc:ElectronicMail', $seller->getEmail());
             $party->appendChild($contact);
         }
@@ -262,267 +323,446 @@ class XmlExporter {
         $invoice->appendChild($supplierParty);
     }
 
-    /**
-     * Ajoute la partie acheteur
-     */
-    private function addBuyerParty(\DOMDocument $xml, \DOMElement $invoice): void {
-        $buyer = $this->invoice->getBuyer();
+    private function addBuyerParty(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        $buyer        = $this->invoice->getBuyer();
+        $customerParty = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:AccountingCustomerParty'
+        );
+        $party = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:Party'
+        );
 
-        $customerParty = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:AccountingCustomerParty');
-        $party = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Party');
-
-        // Adresse électronique
         if ($buyer->getElectronicAddress()) {
-            $endpoint = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:EndpointID', $buyer->getElectronicAddress()->getIdentifier());
+            $endpoint = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:EndpointID',
+                $buyer->getElectronicAddress()->getIdentifier()
+            );
             $endpoint->setAttribute('schemeID', $buyer->getElectronicAddress()->getSchemeId());
             $party->appendChild($endpoint);
         }
 
-        // Nom
-        $partyName = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyName');
+        $partyName = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PartyName'
+        );
         $this->addElement($xml, $partyName, 'cbc:Name', $buyer->getName());
         $party->appendChild($partyName);
 
-        // Adresse postale
         $this->addPostalAddress($xml, $party, $buyer->getAddress());
 
-        // TVA si présent
         if ($buyer->getVatId()) {
-            $partyTaxScheme = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyTaxScheme');
+            $partyTaxScheme = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:PartyTaxScheme'
+            );
             $this->addElement($xml, $partyTaxScheme, 'cbc:CompanyID', $buyer->getVatId());
-            $taxScheme = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxScheme');
+            $taxScheme = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxScheme'
+            );
             $this->addElement($xml, $taxScheme, 'cbc:ID', 'VAT');
             $partyTaxScheme->appendChild($taxScheme);
             $party->appendChild($partyTaxScheme);
         }
 
-        // Entité légale
-        $partyLegalEntity = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PartyLegalEntity');
+        $partyLegalEntity = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PartyLegalEntity'
+        );
         $this->addElement($xml, $partyLegalEntity, 'cbc:RegistrationName', $buyer->getName());
+        // BT-47 — Buyer legal registration ID
+        if ($buyer->getCompanyId()) {
+            $this->addElement($xml, $partyLegalEntity, 'cbc:CompanyID', $buyer->getCompanyId());
+        }
         $party->appendChild($partyLegalEntity);
+
+        if ($buyer->getEmail()) {
+            $contact = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:Contact'
+            );
+            $this->addElement($xml, $contact, 'cbc:ElectronicMail', $buyer->getEmail());
+            $party->appendChild($contact);
+        }
 
         $customerParty->appendChild($party);
         $invoice->appendChild($customerParty);
     }
 
-    /**
-     * Ajoute une adresse postale
-     */
-    private function addPostalAddress(\DOMDocument $xml, \DOMElement $parent, $address): void {
-        $postalAddress = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PostalAddress');
+    private function addPostalAddress(\DOMDocument $xml, \DOMElement $parent, $address): void
+    {
+        $postalAddress = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PostalAddress'
+        );
         $this->addElement($xml, $postalAddress, 'cbc:StreetName', $address->getStreetName());
-
         if ($address->getAdditionalStreetName()) {
             $this->addElement($xml, $postalAddress, 'cbc:AdditionalStreetName', $address->getAdditionalStreetName());
         }
-
         $this->addElement($xml, $postalAddress, 'cbc:CityName', $address->getCityName());
         $this->addElement($xml, $postalAddress, 'cbc:PostalZone', $address->getPostalZone());
 
-        $country = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Country');
+        $country = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:Country'
+        );
         $this->addElement($xml, $country, 'cbc:IdentificationCode', $address->getCountryCode());
         $postalAddress->appendChild($country);
-
         $parent->appendChild($postalAddress);
     }
 
-    /**
-     * Ajoute les moyens de paiement
-     */
-    private function addPaymentMeans(\DOMDocument $xml, \DOMElement $invoice): void {
+    // =========================================================================
+    // Livraison (BG-13 / BT-72)
+    // =========================================================================
+
+    private function addDelivery(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        if (!$this->invoice->getDeliveryDate()) {
+            return;
+        }
+
+        $delivery = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:Delivery'
+        );
+        $this->addElement($xml, $delivery, 'cbc:ActualDeliveryDate', $this->invoice->getDeliveryDate());
+        $invoice->appendChild($delivery);
+    }
+
+    // =========================================================================
+    // Paiement
+    // =========================================================================
+
+    private function addPaymentMeans(\DOMDocument $xml, \DOMElement $invoice): void
+    {
         $paymentInfo = $this->invoice->getPaymentInfo();
+        if (!$paymentInfo || !$paymentInfo->getIban()) {
+            return;
+        }
 
-        if ($paymentInfo && $paymentInfo->getIban()) {
-            $paymentMeans = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PaymentMeans');
-            $this->addElement($xml, $paymentMeans, 'cbc:PaymentMeansCode', $paymentInfo->getPaymentMeansCode());
+        $paymentMeans = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PaymentMeans'
+        );
+        $this->addElement($xml, $paymentMeans, 'cbc:PaymentMeansCode', $paymentInfo->getPaymentMeansCode());
 
-            if ($paymentInfo->getPaymentReference()) {
-                $this->addElement($xml, $paymentMeans, 'cbc:PaymentID', $paymentInfo->getPaymentReference());
+        if ($paymentInfo->getPaymentReference()) {
+            $this->addElement($xml, $paymentMeans, 'cbc:PaymentID', $paymentInfo->getPaymentReference());
+        }
+
+        $payeeFinancialAccount = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PayeeFinancialAccount'
+        );
+        $this->addElement($xml, $payeeFinancialAccount, 'cbc:ID', $paymentInfo->getIban());
+
+        if ($paymentInfo->getBic()) {
+            $financialInstitution = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:FinancialInstitutionBranch'
+            );
+            $this->addElement($xml, $financialInstitution, 'cbc:ID', $paymentInfo->getBic());
+            $payeeFinancialAccount->appendChild($financialInstitution);
+        }
+
+        $paymentMeans->appendChild($payeeFinancialAccount);
+        $invoice->appendChild($paymentMeans);
+    }
+
+    private function addPaymentTerms(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        $terms = $this->invoice->getPaymentTerms();
+        if (!$terms) {
+            return;
+        }
+        $paymentTerms = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:PaymentTerms'
+        );
+        $this->addElement($xml, $paymentTerms, 'cbc:Note', $terms);
+        $invoice->appendChild($paymentTerms);
+    }
+
+    // =========================================================================
+    // AllowanceCharge (BG-20 / BG-21)
+    // =========================================================================
+
+    private function addAllowanceCharges(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        foreach ($this->invoice->getAllowanceCharges() as $ac) {
+            $acElem = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:AllowanceCharge'
+            );
+
+            $chargeIndicator = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:ChargeIndicator',
+                $ac->getChargeIndicator() ? 'true' : 'false'
+            );
+            $acElem->appendChild($chargeIndicator);
+
+            if ($ac->getReasonCode()) {
+                $this->addElement($xml, $acElem, 'cbc:AllowanceChargeReasonCode', $ac->getReasonCode());
+            }
+            if ($ac->getReason()) {
+                $this->addElement($xml, $acElem, 'cbc:AllowanceChargeReason', $ac->getReason());
+            }
+            if ($ac->getMultiplierFactorNumeric() !== null) {
+                $this->addElement(
+                    $xml, $acElem,
+                    'cbc:MultiplierFactorNumeric',
+                    number_format($ac->getMultiplierFactorNumeric(), 2, '.', '')
+                );
             }
 
-            $payeeFinancialAccount = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PayeeFinancialAccount');
-            $this->addElement($xml, $payeeFinancialAccount, 'cbc:ID', $paymentInfo->getIban());
+            $amountElem = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:Amount',
+                number_format($ac->getAmount(), 2, '.', '')
+            );
+            $amountElem->setAttribute('currencyID', $this->invoice->getDocumentCurrencyCode());
+            $acElem->appendChild($amountElem);
 
-            if ($paymentInfo->getBic()) {
-                $financialInstitution = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:FinancialInstitutionBranch');
-                $this->addElement($xml, $financialInstitution, 'cbc:ID', $paymentInfo->getBic());
-                $payeeFinancialAccount->appendChild($financialInstitution);
+            if ($ac->getBaseAmount() !== null) {
+                $baseAmountElem = $xml->createElementNS(
+                    'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                    'cbc:BaseAmount',
+                    number_format($ac->getBaseAmount(), 2, '.', '')
+                );
+                $baseAmountElem->setAttribute('currencyID', $this->invoice->getDocumentCurrencyCode());
+                $acElem->appendChild($baseAmountElem);
             }
 
-            $paymentMeans->appendChild($payeeFinancialAccount);
-            $invoice->appendChild($paymentMeans);
+            // TaxCategory
+            $taxCategory = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxCategory'
+            );
+            $this->addElement($xml, $taxCategory, 'cbc:ID', $ac->getVatCategory());
+            $this->addElement($xml, $taxCategory, 'cbc:Percent', number_format($ac->getVatRate(), 2, '.', ''));
+            $taxScheme = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxScheme'
+            );
+            $this->addElement($xml, $taxScheme, 'cbc:ID', 'VAT');
+            $taxCategory->appendChild($taxScheme);
+            $acElem->appendChild($taxCategory);
+
+            $invoice->appendChild($acElem);
         }
     }
 
-    /**
-     * Ajoute les modalités de paiement si il y en a
-     */
-    private function addPaymentTerms(\DOMDocument $xml, \DOMElement $invoice): void {
-        $paymentTermsValue = $this->invoice->getPaymentTerms();
+    // =========================================================================
+    // TVA
+    // =========================================================================
 
-        if ($paymentTermsValue) {
-            $paymentTerms = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:PaymentTerms');
-            $this->addElement($xml, $paymentTerms, 'cbc:Note', $paymentTermsValue);
-            $invoice->appendChild($paymentTerms);
-        }
-    }
+    private function addTaxTotals(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        foreach ($this->invoice->getVatBreakdown() as $vat) {
+            $taxTotal = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxTotal'
+            );
 
-    /**
-     * Ajoute les totaux TVA
-     */
-    private function addTaxTotals(\DOMDocument $xml, \DOMElement $invoice): void {
-        $vatBreakdown = $this->invoice->getVatBreakdown();
-
-        foreach ($vatBreakdown as $vat) {
-            $taxTotal = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxTotal');
-
-            $taxAmount = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:TaxAmount', number_format($vat->getTaxAmount(), 2, '.', ''));
+            $taxAmount = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:TaxAmount',
+                number_format($vat->getTaxAmount(), 2, '.', '')
+            );
             $taxAmount->setAttribute('currencyID', $this->invoice->getDocumentCurrencyCode());
             $taxTotal->appendChild($taxAmount);
 
-            $taxSubtotal = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxSubtotal');
+            $taxSubtotal = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxSubtotal'
+            );
 
-            $taxableAmount = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:TaxableAmount', number_format($vat->getTaxableAmount(), 2, '.', ''));
+            $taxableAmount = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:TaxableAmount',
+                number_format($vat->getTaxableAmount(), 2, '.', '')
+            );
             $taxableAmount->setAttribute('currencyID', $this->invoice->getDocumentCurrencyCode());
             $taxSubtotal->appendChild($taxableAmount);
 
-            $taxAmountSub = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:TaxAmount', number_format($vat->getTaxAmount(), 2, '.', ''));
+            $taxAmountSub = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:TaxAmount',
+                number_format($vat->getTaxAmount(), 2, '.', '')
+            );
             $taxAmountSub->setAttribute('currencyID', $this->invoice->getDocumentCurrencyCode());
             $taxSubtotal->appendChild($taxAmountSub);
 
-            $taxCategory = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxCategory');
+            $taxCategory = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxCategory'
+            );
             $this->addElement($xml, $taxCategory, 'cbc:ID', $vat->getCategory());
-
             $this->addElement($xml, $taxCategory, 'cbc:Percent', number_format($vat->getRate(), 2, '.', ''));
 
             if ($vat->getExemptionReason()) {
                 $this->addElement($xml, $taxCategory, 'cbc:TaxExemptionReasonCode', $vat->getExemptionReason());
-                $this->addElement($xml, $taxCategory, 'cbc:TaxExemptionReason', InvoiceConstants::VAT_EXEMPTION_REASONS[$vat->getExemptionReason()] ?? '');
+                $this->addElement(
+                    $xml, $taxCategory,
+                    'cbc:TaxExemptionReason',
+                    InvoiceConstants::VAT_EXEMPTION_REASONS[$vat->getExemptionReason()] ?? ''
+                );
             }
 
-            $taxSchemeVat = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxScheme');
+            $taxSchemeVat = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxScheme'
+            );
             $this->addElement($xml, $taxSchemeVat, 'cbc:ID', 'VAT');
             $taxCategory->appendChild($taxSchemeVat);
-
             $taxSubtotal->appendChild($taxCategory);
             $taxTotal->appendChild($taxSubtotal);
             $invoice->appendChild($taxTotal);
         }
     }
 
-    /**
-     * Ajoute les totaux monétaires
-     */
-    private function addMonetaryTotals(\DOMDocument $xml, \DOMElement $invoice): void {
-        $legalMonetaryTotal = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:LegalMonetaryTotal');
+    // =========================================================================
+    // Totaux monétaires
+    // =========================================================================
 
-        $this->addAmountElement($xml, $legalMonetaryTotal, 'cbc:LineExtensionAmount', $this->invoice->getTaxExclusiveAmount());
-        $this->addAmountElement($xml, $legalMonetaryTotal, 'cbc:TaxExclusiveAmount', $this->invoice->getTaxExclusiveAmount());
-        $this->addAmountElement($xml, $legalMonetaryTotal, 'cbc:TaxInclusiveAmount', $this->invoice->getTaxInclusiveAmount());
-        if ($this->invoice->getPrepaidAmount() > 0.0) {
-            $this->addAmountElement($xml, $legalMonetaryTotal, 'cbc:PrepaidAmount', $this->invoice->getPrepaidAmount());
+    private function addMonetaryTotals(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        $lmt = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:LegalMonetaryTotal'
+        );
+
+        $this->addAmountElement($xml, $lmt, 'cbc:LineExtensionAmount', $this->invoice->getSumOfLineNetAmounts());
+        $this->addAmountElement($xml, $lmt, 'cbc:TaxExclusiveAmount',  $this->invoice->getTaxExclusiveAmount());
+        $this->addAmountElement($xml, $lmt, 'cbc:TaxInclusiveAmount',  $this->invoice->getTaxInclusiveAmount());
+
+        if ($this->invoice->getSumOfAllowances() > 0.0) {
+            $this->addAmountElement($xml, $lmt, 'cbc:AllowanceTotalAmount', $this->invoice->getSumOfAllowances());
         }
-        $this->addAmountElement($xml, $legalMonetaryTotal, 'cbc:PayableAmount', $this->invoice->getPayableAmount());
+        if ($this->invoice->getSumOfCharges() > 0.0) {
+            $this->addAmountElement($xml, $lmt, 'cbc:ChargeTotalAmount', $this->invoice->getSumOfCharges());
+        }
+        if ($this->invoice->getPrepaidAmount() > 0.0) {
+            $this->addAmountElement($xml, $lmt, 'cbc:PrepaidAmount', $this->invoice->getPrepaidAmount());
+        }
 
-        $invoice->appendChild($legalMonetaryTotal);
+        $this->addAmountElement($xml, $lmt, 'cbc:PayableAmount', $this->invoice->getPayableAmount());
+
+        $invoice->appendChild($lmt);
     }
 
-    /**
-     * Ajoute les lignes de facture
-     */
-    private function addInvoiceLines(\DOMDocument $xml, \DOMElement $invoice): void {
+    // =========================================================================
+    // Lignes
+    // =========================================================================
+
+    private function addInvoiceLines(\DOMDocument $xml, \DOMElement $invoice): void
+    {
         foreach ($this->invoice->getInvoiceLines() as $line) {
-            $invoiceLine = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:InvoiceLine');
+            $invoiceLine = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:InvoiceLine'
+            );
 
             $this->addElement($xml, $invoiceLine, 'cbc:ID', $line->getId());
 
-            // cbc:Note ?
-
-            $quantity = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', 'cbc:InvoicedQuantity', (string) $line->getQuantity());
+            $quantity = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                'cbc:InvoicedQuantity',
+                (string) $line->getQuantity()
+            );
             $quantity->setAttribute('unitCode', $line->getUnitCode());
             $invoiceLine->appendChild($quantity);
 
             $this->addAmountElement($xml, $invoiceLine, 'cbc:LineExtensionAmount', $line->getLineAmount());
 
-            // Item
-            $item = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Item');
-            // Description toujours en premier
+            $item = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:Item'
+            );
             if ($line->getDescription()) {
                 $this->addElement($xml, $item, 'cbc:Description', $line->getDescription());
             }
             $this->addElement($xml, $item, 'cbc:Name', $line->getName());
 
-            $classifiedTaxCategory = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:ClassifiedTaxCategory');
+            $classifiedTaxCategory = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:ClassifiedTaxCategory'
+            );
             $this->addElement($xml, $classifiedTaxCategory, 'cbc:ID', $line->getVatCategory());
-
-            $this->addElement($xml, $classifiedTaxCategory, 'cbc:Percent', number_format($line->getVatRate(), 2, '.', ''));
-
-            $lineTaxScheme = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:TaxScheme');
+            $this->addElement($xml, $classifiedTaxCategory, 'cbc:Percent',
+                number_format($line->getVatRate(), 2, '.', ''));
+            $lineTaxScheme = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:TaxScheme'
+            );
             $this->addElement($xml, $lineTaxScheme, 'cbc:ID', 'VAT');
             $classifiedTaxCategory->appendChild($lineTaxScheme);
             $item->appendChild($classifiedTaxCategory);
             $invoiceLine->appendChild($item);
 
-            // Price
-            $price = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2', 'cac:Price');
+            $price = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:Price'
+            );
             $this->addAmountElement($xml, $price, 'cbc:PriceAmount', $line->getUnitPrice());
             $invoiceLine->appendChild($price);
+
             $invoice->appendChild($invoiceLine);
         }
     }
 
-    /**
-     * Ajoute un élément avec texte
-     */
-    private function addElement(\DOMDocument $xml, \DOMElement $parent, string $name, string $value): void {
-        $namespace = strpos($name, 'cbc:') === 0 ? 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2' : 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
+    // =========================================================================
+    // Helpers DOM
+    // =========================================================================
+
+    private function addElement(\DOMDocument $xml, \DOMElement $parent, string $name, string $value): void
+    {
+        $namespace = str_starts_with($name, 'cbc:')
+            ? 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'
+            : 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
 
         $element = $xml->createElementNS($namespace, $name, htmlspecialchars($value, ENT_XML1, 'UTF-8'));
         $parent->appendChild($element);
     }
 
-    /**
-     * Ajoute un élément montant avec devise
-     */
-    private function addAmountElement(\DOMDocument $xml, \DOMElement $parent, string $name, float $amount): void {
-        $element = $xml->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2', $name, number_format($amount, 2, '.', ''));
+    private function addAmountElement(\DOMDocument $xml, \DOMElement $parent, string $name, float $amount): void
+    {
+        $element = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+            $name,
+            number_format($amount, 2, '.', '')
+        );
         $element->setAttribute('currencyID', $this->invoice->getDocumentCurrencyCode());
         $parent->appendChild($element);
     }
 
-    /**
-     * Sauvegarde le XML dans un fichier
-     * 
-     * @param string $filepath Chemin du fichier
-     * @return bool True si succès
-     */
-    public function saveToFile(string $filepath): bool {
+    // =========================================================================
+    // Sauvegarde fichier
+    // =========================================================================
+
+    public function saveToFile(string $filepath): bool
+    {
         try {
-            $xml = $this->toUbl21();
-            return file_put_contents($filepath, $xml) !== false;
+            return file_put_contents($filepath, $this->toUbl21()) !== false;
         } catch (\Exception $e) {
             return false;
         }
     }
 
-    /**
-     * @var bool Active/désactive la validation Schematron
-     */
-    private bool $enableSchematronValidation = false;
+    // =========================================================================
+    // Schematron (inchangé)
+    // =========================================================================
 
-    /**
-     * @var array<string> Niveaux de validation Schematron à appliquer
-     */
+    private bool $enableSchematronValidation = false;
     private array $schematronLevels = ['ublbe', 'en16931'];
 
-    /**
-     * Active la validation Schematron lors de l'export
-     * 
-     * @param bool $enable
-     * @param array<string> $levels Niveaux de validation ['ublbe', 'en16931', 'peppol']
-     * @return self
-     */
-    public function enableSchematronValidation(bool $enable = true, array $levels = ['ublbe', 'en16931']): self {
+    public function enableSchematronValidation(bool $enable = true, array $levels = ['ublbe', 'en16931']): self
+    {
         $this->enableSchematronValidation = $enable;
         $this->schematronLevels = $levels;
         return $this;
