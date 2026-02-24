@@ -39,8 +39,7 @@ use Peppol\Exceptions\ImportWarningException;
  * @package Peppol\Formats
  * @version 1.1
  */
-class XmlImporter
-{
+class XmlImporter {
     // =========================================================================
     // Point d'entrée principal
     // =========================================================================
@@ -72,9 +71,9 @@ class XmlImporter
      * @throws ImportWarningException        En mode lenient si des écarts ou anomalies sont détectés
      */
     public static function fromUbl(
-        string $xmlContent,
-        ?string $targetClass = null,
-        bool $strict = true
+            string $xmlContent,
+            ?string $targetClass = null,
+            bool $strict = true
     ): InvoiceBase {
         // Lecture du fichier si chemin fourni
         if (file_exists($xmlContent)) {
@@ -105,15 +104,15 @@ class XmlImporter
         }
 
         // Extraction des données obligatoires
-        $invoiceNumber   = self::getXPathValue($xpath, '//cbc:ID');
-        $issueDate       = self::getXPathValue($xpath, '//cbc:IssueDate');
+        $invoiceNumber = self::getXPathValue($xpath, '//cbc:ID');
+        $issueDate = self::getXPathValue($xpath, '//cbc:IssueDate');
         $invoiceTypeCode = self::getXPathValue($xpath, '//cbc:InvoiceTypeCode', '380');
-        $currencyCode    = self::getXPathValue($xpath, '//cbc:DocumentCurrencyCode', 'EUR');
+        $currencyCode = self::getXPathValue($xpath, '//cbc:DocumentCurrencyCode', 'EUR');
 
         if (empty($invoiceNumber) || empty($issueDate)) {
             throw new \InvalidArgumentException(
-                "Le XML doit contenir au minimum un numéro de facture (cbc:ID) et une date d'émission (cbc:IssueDate)"
-            );
+                            "Le XML doit contenir au minimum un numéro de facture (cbc:ID) et une date d'émission (cbc:IssueDate)"
+                    );
         }
 
         // Instanciation de la classe cible
@@ -173,8 +172,7 @@ class XmlImporter
      * @param \DOMXPath $xpath
      * @return string Nom complet de la classe à instancier
      */
-    private static function detectInvoiceType(\DOMXPath $xpath): string
-    {
+    private static function detectInvoiceType(\DOMXPath $xpath): string {
         $customizationId = self::getXPathValue($xpath, '//cbc:CustomizationID', '');
 
         if (strpos($customizationId, 'UBL.BE') !== false) {
@@ -207,18 +205,25 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadBasicData(InvoiceBase $invoice, \DOMXPath $xpath): void
-    {
+    private static function loadBasicData(InvoiceBase $invoice, \DOMXPath $xpath): void {
         // BT-9 — Date d'échéance
         $dueDate = self::getXPathValue($xpath, '//cbc:DueDate');
         if ($dueDate) {
-            try { $invoice->setDueDate($dueDate); } catch (\Exception $e) {}
+            try {
+                $invoice->setDueDate($dueDate);
+            } catch (\Exception $e) {
+                
+            }
         }
 
         // BT-72 — Date de livraison (dans cac:Delivery)
         $deliveryDate = self::getXPathValue($xpath, '//cac:Delivery/cbc:ActualDeliveryDate');
         if ($deliveryDate) {
-            try { $invoice->setDeliveryDate($deliveryDate); } catch (\Exception $e) {}
+            try {
+                $invoice->setDeliveryDate($deliveryDate);
+            } catch (\Exception $e) {
+                
+            }
         }
 
         // BT-10 — Référence acheteur
@@ -277,17 +282,19 @@ class XmlImporter
 
         // BG-3 — Référence facture précédente (BT-25 + BT-26)
         $precedingNumber = self::getXPathValue(
-            $xpath,
-            '//cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID'
+                $xpath,
+                '//cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID'
         );
         if ($precedingNumber) {
             $precedingDate = self::getXPathValue(
-                $xpath,
-                '//cac:BillingReference/cac:InvoiceDocumentReference/cbc:IssueDate'
+                    $xpath,
+                    '//cac:BillingReference/cac:InvoiceDocumentReference/cbc:IssueDate'
             );
             try {
                 $invoice->setPrecedingInvoiceReference($precedingNumber, $precedingDate ?: null);
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+                
+            }
         }
     }
 
@@ -308,11 +315,10 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadSeller(InvoiceBase $invoice, \DOMXPath $xpath): void
-    {
+    private static function loadSeller(InvoiceBase $invoice, \DOMXPath $xpath): void {
         $basePath = '//cac:AccountingSupplierParty/cac:Party';
 
-        $name  = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:RegistrationName");
+        $name = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:RegistrationName");
         $vatId = self::getXPathValue($xpath, "{$basePath}/cac:PartyTaxScheme/cbc:CompanyID");
 
         if (!$name || !$vatId) {
@@ -321,9 +327,9 @@ class XmlImporter
 
         // Adresse postale
         $addressPath = "{$basePath}/cac:PostalAddress";
-        $streetName  = self::getXPathValue($xpath, "{$addressPath}/cbc:StreetName", '');
-        $cityName    = self::getXPathValue($xpath, "{$addressPath}/cbc:CityName", '');
-        $postalZone  = self::getXPathValue($xpath, "{$addressPath}/cbc:PostalZone", '');
+        $streetName = self::getXPathValue($xpath, "{$addressPath}/cbc:StreetName", '');
+        $cityName = self::getXPathValue($xpath, "{$addressPath}/cbc:CityName", '');
+        $postalZone = self::getXPathValue($xpath, "{$addressPath}/cbc:PostalZone", '');
         $countryCode = self::getXPathValue($xpath, "{$addressPath}/cac:Country/cbc:IdentificationCode", '');
 
         if (!$streetName || !$cityName || !$postalZone || !$countryCode) {
@@ -334,14 +340,14 @@ class XmlImporter
 
         // Autres données vendeur
         $companyId = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:CompanyID");
-        $email     = self::getXPathValue($xpath, "{$basePath}/cac:Contact/cbc:ElectronicMail");
+        $email = self::getXPathValue($xpath, "{$basePath}/cac:Contact/cbc:ElectronicMail");
 
         // Adresse électronique (BT-34)
         $electronicAddress = null;
         $endpointId = self::getXPathValue($xpath, "{$basePath}/cbc:EndpointID");
         if ($endpointId) {
             $endpointNode = $xpath->query("{$basePath}/cbc:EndpointID")->item(0);
-            $schemeId     = $endpointNode?->getAttribute('schemeID') ?? '9925';
+            $schemeId = $endpointNode?->getAttribute('schemeID') ?? '9925';
             try {
                 $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
             } catch (\Exception $e) {
@@ -367,8 +373,7 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadBuyer(InvoiceBase $invoice, \DOMXPath $xpath): void
-    {
+    private static function loadBuyer(InvoiceBase $invoice, \DOMXPath $xpath): void {
         $basePath = '//cac:AccountingCustomerParty/cac:Party';
 
         $name = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:RegistrationName");
@@ -378,9 +383,9 @@ class XmlImporter
 
         // Adresse postale
         $addressPath = "{$basePath}/cac:PostalAddress";
-        $streetName  = self::getXPathValue($xpath, "{$addressPath}/cbc:StreetName", '');
-        $cityName    = self::getXPathValue($xpath, "{$addressPath}/cbc:CityName", '');
-        $postalZone  = self::getXPathValue($xpath, "{$addressPath}/cbc:PostalZone", '');
+        $streetName = self::getXPathValue($xpath, "{$addressPath}/cbc:StreetName", '');
+        $cityName = self::getXPathValue($xpath, "{$addressPath}/cbc:CityName", '');
+        $postalZone = self::getXPathValue($xpath, "{$addressPath}/cbc:PostalZone", '');
         $countryCode = self::getXPathValue($xpath, "{$addressPath}/cac:Country/cbc:IdentificationCode", '');
 
         if (!$streetName || !$cityName || !$postalZone || !$countryCode) {
@@ -389,16 +394,16 @@ class XmlImporter
 
         $address = new Address($streetName, $cityName, $postalZone, $countryCode);
 
-        $vatId     = self::getXPathValue($xpath, "{$basePath}/cac:PartyTaxScheme/cbc:CompanyID");
+        $vatId = self::getXPathValue($xpath, "{$basePath}/cac:PartyTaxScheme/cbc:CompanyID");
         $companyId = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:CompanyID"); // BT-47
-        $email     = self::getXPathValue($xpath, "{$basePath}/cac:Contact/cbc:ElectronicMail");
+        $email = self::getXPathValue($xpath, "{$basePath}/cac:Contact/cbc:ElectronicMail");
 
         // Adresse électronique (BT-49)
         $electronicAddress = null;
         $endpointId = self::getXPathValue($xpath, "{$basePath}/cbc:EndpointID");
         if ($endpointId) {
             $endpointNode = $xpath->query("{$basePath}/cbc:EndpointID")->item(0);
-            $schemeId     = $endpointNode?->getAttribute('schemeID') ?? '9925';
+            $schemeId = $endpointNode?->getAttribute('schemeID') ?? '9925';
             try {
                 $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
             } catch (\Exception $e) {
@@ -424,30 +429,29 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadAttachedDocuments(InvoiceBase $invoice, \DOMXPath $xpath): void
-    {
+    private static function loadAttachedDocuments(InvoiceBase $invoice, \DOMXPath $xpath): void {
         $attachedDocs = $xpath->query('//cac:AdditionalDocumentReference');
 
         foreach ($attachedDocs as $docNode) {
             $embeddedDocNode = $xpath->query(
-                'cac:Attachment/cbc:EmbeddedDocumentBinaryObject',
-                $docNode
-            )->item(0);
+                            'cac:Attachment/cbc:EmbeddedDocumentBinaryObject',
+                            $docNode
+                    )->item(0);
 
             if (!$embeddedDocNode) {
                 continue; // Pas de contenu binaire — on ignore
             }
 
             $base64Content = $embeddedDocNode->nodeValue;
-            $mimeType      = $embeddedDocNode->getAttribute('mimeCode');
-            $filename      = $embeddedDocNode->getAttribute('filename');
+            $mimeType = $embeddedDocNode->getAttribute('mimeCode');
+            $filename = $embeddedDocNode->getAttribute('filename');
 
             if (!$base64Content || !$mimeType || !$filename) {
                 continue;
             }
 
-            $fileContent  = base64_decode($base64Content);
-            $description  = self::getXPathValue($xpath, 'cbc:DocumentDescription', null, $docNode);
+            $fileContent = base64_decode($base64Content);
+            $description = self::getXPathValue($xpath, 'cbc:DocumentDescription', null, $docNode);
             $documentType = self::getXPathValue($xpath, 'cbc:DocumentTypeCode', null, $docNode);
 
             try {
@@ -481,10 +485,10 @@ class XmlImporter
      * @throws \InvalidArgumentException En mode strict si les données de paiement sont invalides
      */
     private static function loadPaymentInfo(
-        InvoiceBase $invoice,
-        \DOMXPath $xpath,
-        bool $strict,
-        array &$anomalies
+            InvoiceBase $invoice,
+            \DOMXPath $xpath,
+            bool $strict,
+            array &$anomalies
     ): void {
         $iban = self::getXPathValue($xpath, '//cac:PaymentMeans/cac:PayeeFinancialAccount/cbc:ID');
         if (!$iban) {
@@ -492,11 +496,11 @@ class XmlImporter
         }
 
         $paymentMeansCode = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentMeansCode', '30');
-        $bic              = self::getXPathValue($xpath,
-            '//cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cbc:ID');
-        $paymentRef       = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentID');
+        $bic = self::getXPathValue($xpath,
+                '//cac:PaymentMeans/cac:PayeeFinancialAccount/cac:FinancialInstitutionBranch/cbc:ID');
+        $paymentRef = self::getXPathValue($xpath, '//cac:PaymentMeans/cbc:PaymentID');
         // BT-20 — Conditions de paiement dans cac:PaymentTerms/cbc:Note
-        $paymentTerms     = self::getXPathValue($xpath, '//cac:PaymentTerms/cbc:Note');
+        $paymentTerms = self::getXPathValue($xpath, '//cac:PaymentTerms/cbc:Note');
 
         try {
             $paymentInfo = new PaymentInfo($paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms);
@@ -512,16 +516,16 @@ class XmlImporter
             // Mode lenient : charge le BIC brut sans validation
             try {
                 $paymentInfo = PaymentInfo::withRawBic(
-                    $paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms
+                        $paymentMeansCode, $iban, $bic, $paymentRef, $paymentTerms
                 );
                 $invoice->setPaymentInfo($paymentInfo);
                 if ($paymentTerms) {
                     $invoice->setPaymentTerms($paymentTerms);
                 }
                 $anomalies[] = sprintf(
-                    'Paiement : BIC invalide « %s » chargé tel quel — %s',
-                    $bic ?? '',
-                    $e->getMessage()
+                        'Paiement : BIC invalide « %s » chargé tel quel — %s',
+                        $bic ?? '',
+                        $e->getMessage()
                 );
             } catch (\Exception $e2) {
                 $anomalies[] = 'Bloc paiement ignoré : ' . $e2->getMessage();
@@ -551,36 +555,36 @@ class XmlImporter
      * @throws \InvalidArgumentException En mode strict si une AllowanceCharge est invalide
      */
     private static function loadAllowanceCharges(
-        InvoiceBase $invoice,
-        \DOMXPath $xpath,
-        bool $strict,
-        array &$anomalies
+            InvoiceBase $invoice,
+            \DOMXPath $xpath,
+            bool $strict,
+            array &$anomalies
     ): void {
         // Sélection des AllowanceCharge enfants directs de Invoice (pas ceux des lignes)
-        $nodes = $xpath->query('/Invoice/cac:AllowanceCharge');
+        $nodes = $xpath->query('/ubl:Invoice/cac:AllowanceCharge');
 
         foreach ($nodes as $node) {
             $chargeIndicatorStr = self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $node);
-            $chargeIndicator    = strtolower(trim($chargeIndicatorStr)) === 'true';
+            $chargeIndicator = strtolower(trim($chargeIndicatorStr)) === 'true';
 
-            $amount     = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $node);
+            $amount = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $node);
             $baseAmount = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $node);
-            $percent    = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $node);
+            $percent = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $node);
             $reasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $node);
-            $reason     = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $node);
-            $vatCat     = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $node);
-            $vatRate    = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $node);
+            $reason = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $node);
+            $vatCat = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $node);
+            $vatRate = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $node);
 
             try {
                 $ac = new AllowanceCharge(
-                    $chargeIndicator,
-                    $amount,
-                    $vatCat,
-                    $vatRate,
-                    $baseAmount !== null ? (float) $baseAmount : null,
-                    $percent    !== null ? (float) $percent    : null,
-                    $reasonCode,
-                    $reason
+                        $chargeIndicator,
+                        $amount,
+                        $vatCat,
+                        $vatRate,
+                        $baseAmount !== null ? (float) $baseAmount : null,
+                        $percent !== null ? (float) $percent : null,
+                        $reasonCode,
+                        $reason
                 );
                 $invoice->addAllowanceCharge($ac);
             } catch (\InvalidArgumentException $e) {
@@ -589,9 +593,9 @@ class XmlImporter
                 }
                 // Mode lenient : on ignore cette AllowanceCharge et on enregistre l'anomalie
                 $anomalies[] = sprintf(
-                    'AllowanceCharge (%s) ignorée : %s',
-                    $chargeIndicator ? 'majoration' : 'remise',
-                    $e->getMessage()
+                        'AllowanceCharge (%s) ignorée : %s',
+                        $chargeIndicator ? 'majoration' : 'remise',
+                        $e->getMessage()
                 );
             }
         }
@@ -620,15 +624,15 @@ class XmlImporter
      * @throws \InvalidArgumentException En mode strict si une ligne est invalide
      */
     private static function loadInvoiceLines(
-        InvoiceBase $invoice,
-        \DOMXPath $xpath,
-        bool $strict,
-        array &$anomalies
+            InvoiceBase $invoice,
+            \DOMXPath $xpath,
+            bool $strict,
+            array &$anomalies
     ): void {
         $lines = $xpath->query('//cac:InvoiceLine');
 
         foreach ($lines as $lineNode) {
-            $lineId   = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
+            $lineId = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
             $lineName = self::getXPathValue($xpath, 'cac:Item/cbc:Name', null, $lineNode);
 
             if (!$lineId || !$lineName) {
@@ -637,23 +641,23 @@ class XmlImporter
 
             // Quantité et unité
             $quantityNode = $xpath->query('cbc:InvoicedQuantity', $lineNode)->item(0);
-            $quantity     = $quantityNode ? (float) $quantityNode->nodeValue : 0;
-            $unitCode     = $quantityNode?->getAttribute('unitCode') ?? 'C62';
+            $quantity = $quantityNode ? (float) $quantityNode->nodeValue : 0;
+            $unitCode = $quantityNode?->getAttribute('unitCode') ?? 'C62';
 
             if ($quantity <= 0) {
                 continue; // Quantité nulle ou négative — ignorée
             }
 
-            $unitPrice   = (float) self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
+            $unitPrice = (float) self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
             $vatCategory = self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', 'S', $lineNode);
-            $vatRate     = (float) self::getXPathValue($xpath,
-                'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
+            $vatRate = (float) self::getXPathValue($xpath,
+                            'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
             $description = self::getXPathValue($xpath, 'cac:Item/cbc:Description', null, $lineNode);
 
             try {
                 $line = new InvoiceLine(
-                    $lineId, $lineName, $quantity, $unitCode,
-                    $unitPrice, $vatCategory, $vatRate, $description
+                        $lineId, $lineName, $quantity, $unitCode,
+                        $unitPrice, $vatCategory, $vatRate, $description
                 );
                 $invoice->addInvoiceLine($line);
             } catch (\InvalidArgumentException $e) {
@@ -664,20 +668,94 @@ class XmlImporter
                 // Mode lenient : création avec C62 puis injection du vrai unitCode via Reflection
                 try {
                     $line = new InvoiceLine(
-                        $lineId, $lineName, $quantity, 'C62',
-                        $unitPrice, $vatCategory, $vatRate, $description
+                            $lineId, $lineName, $quantity, 'C62',
+                            $unitPrice, $vatCategory, $vatRate, $description
                     );
                     $ref = new \ReflectionProperty(InvoiceLine::class, 'unitCode');
                     $ref->setAccessible(true);
                     $ref->setValue($line, $unitCode);
                     $invoice->addInvoiceLine($line);
                     $anomalies[] = sprintf(
-                        'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
-                        $lineId,
-                        $unitCode,
-                        $e->getMessage()
+                            'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
+                            $lineId,
+                            $unitCode,
+                            $e->getMessage()
                     );
+                    // BG-28 — Remises et majorations au niveau ligne
+                    $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
+                    foreach ($lineAcs as $lacNode) {
+                        $lacChargeIndicator = strtolower(
+                                        self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
+                                ) === 'true';
+                        $lacAmount = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
+                        $lacBase = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
+                        $lacPercent = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
+                        $lacReasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $lacNode);
+                        $lacReason = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
+                        $lacVatCat = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
+                        $lacVatRate = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
+
+                        try {
+                            $lac = new AllowanceCharge(
+                                    $lacChargeIndicator,
+                                    $lacAmount,
+                                    $lacVatCat,
+                                    $lacVatRate,
+                                    $lacBase !== null ? (float) $lacBase : null,
+                                    $lacPercent !== null ? (float) $lacPercent : null,
+                                    $lacReasonCode,
+                                    $lacReason
+                            );
+                            $line->addAllowanceCharge($lac);
+                        } catch (\InvalidArgumentException $e) {
+                            if ($strict) {
+                                throw $e;
+                            }
+                            $anomalies[] = sprintf(
+                                    'Ligne %s — AllowanceCharge ignoré : %s',
+                                    $lineId,
+                                    $e->getMessage()
+                            );
+                        }
+                    }
                 } catch (\Exception $e2) {
+// BG-28 — Remises et majorations au niveau ligne
+                    $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
+                    foreach ($lineAcs as $lacNode) {
+                        $lacChargeIndicator = strtolower(
+                                        self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
+                                ) === 'true';
+                        $lacAmount = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
+                        $lacBase = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
+                        $lacPercent = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
+                        $lacReasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $lacNode);
+                        $lacReason = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
+                        $lacVatCat = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
+                        $lacVatRate = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
+
+                        try {
+                            $lac = new AllowanceCharge(
+                                    $lacChargeIndicator,
+                                    $lacAmount,
+                                    $lacVatCat,
+                                    $lacVatRate,
+                                    $lacBase !== null ? (float) $lacBase : null,
+                                    $lacPercent !== null ? (float) $lacPercent : null,
+                                    $lacReasonCode,
+                                    $lacReason
+                            );
+                            $line->addAllowanceCharge($lac);
+                        } catch (\InvalidArgumentException $e) {
+                            if ($strict) {
+                                throw $e;
+                            }
+                            $anomalies[] = sprintf(
+                                    'Ligne %s — AllowanceCharge ignoré : %s',
+                                    $lineId,
+                                    $e->getMessage()
+                            );
+                        }
+                    }
                     $anomalies[] = sprintf('Ligne %s ignorée : %s', $lineId, $e2->getMessage());
                 }
             }
@@ -700,14 +778,13 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadDeclaredTotals(InvoiceBase $invoice, \DOMXPath $xpath): void
-    {
+    private static function loadDeclaredTotals(InvoiceBase $invoice, \DOMXPath $xpath): void {
         $lineExtension = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:LineExtensionAmount', '0');
-        $taxExclusive  = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount', '0');
-        $taxInclusive  = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', '0');
-        $prepaid       = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PrepaidAmount', '0');
-        $payable       = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PayableAmount', '0');
-        $taxAmount     = (float) self::getXPathValue($xpath, '//cac:TaxTotal/cbc:TaxAmount', '0');
+        $taxExclusive = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount', '0');
+        $taxInclusive = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', '0');
+        $prepaid = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PrepaidAmount', '0');
+        $payable = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PayableAmount', '0');
+        $taxAmount = (float) self::getXPathValue($xpath, '//cac:TaxTotal/cbc:TaxAmount', '0');
 
         $invoice->setImportedTotals($lineExtension, $taxExclusive, $taxInclusive, $prepaid, $payable, $taxAmount);
         // Synchronisation du prépaiement pour le calcul correct de payableAmount
@@ -729,12 +806,11 @@ class XmlImporter
      * @param UblBeInvoice $invoice
      * @param \DOMXPath    $xpath
      */
-    private static function loadUblBeSpecificData(UblBeInvoice $invoice, \DOMXPath $xpath): void
-    {
+    private static function loadUblBeSpecificData(UblBeInvoice $invoice, \DOMXPath $xpath): void {
         // BT-121 — Raison d'exonération TVA
         $exemptionReason = self::getXPathValue(
-            $xpath,
-            '//cac:TaxSubtotal/cac:TaxCategory/cbc:TaxExemptionReasonCode'
+                $xpath,
+                '//cac:TaxSubtotal/cac:TaxCategory/cbc:TaxExemptionReasonCode'
         );
         if ($exemptionReason) {
             try {
@@ -762,14 +838,12 @@ class XmlImporter
      * @return string|null
      */
     private static function getXPathValue(
-        \DOMXPath $xpath,
-        string $query,
-        ?string $default = null,
-        ?\DOMNode $contextNode = null
+            \DOMXPath $xpath,
+            string $query,
+            ?string $default = null,
+            ?\DOMNode $contextNode = null
     ): ?string {
-        $nodes = $contextNode
-            ? $xpath->query($query, $contextNode)
-            : $xpath->query($query);
+        $nodes = $contextNode ? $xpath->query($query, $contextNode) : $xpath->query($query);
 
         if ($nodes && $nodes->length > 0) {
             $value = trim($nodes->item(0)->nodeValue);
