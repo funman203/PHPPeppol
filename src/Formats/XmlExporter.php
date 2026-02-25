@@ -791,6 +791,42 @@ class XmlExporter {
             }
             $this->addElement($xml, $item, 'cbc:Name', $line->getName());
 
+            // BT-155 — Référence article vendeur
+            if ($line->getSellerItemId()) {
+                $sellersItemId = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:SellersItemIdentification'
+                );
+                $this->addElement($xml, $sellersItemId, 'cbc:ID', $line->getSellerItemId());
+                $item->appendChild($sellersItemId);
+            }
+
+// BT-156 — Référence article acheteur
+            if ($line->getBuyerItemId()) {
+                $buyersItemId = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:BuyersItemIdentification'
+                );
+                $this->addElement($xml, $buyersItemId, 'cbc:ID', $line->getBuyerItemId());
+                $item->appendChild($buyersItemId);
+            }
+
+// BT-158 — Code de classification article
+            if ($line->getItemClassificationCode()) {
+                $commodityClassification = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:CommodityClassification'
+                );
+                $classificationCode = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                        'cbc:ItemClassificationCode',
+                        htmlspecialchars($line->getItemClassificationCode(), ENT_XML1, 'UTF-8')
+                );
+                $classificationCode->setAttribute('listID', $line->getItemClassificationListId());
+                $commodityClassification->appendChild($classificationCode);
+                $item->appendChild($commodityClassification);
+            }
+
             $classifiedTaxCategory = $xml->createElementNS(
                     'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
                     'cac:ClassifiedTaxCategory'

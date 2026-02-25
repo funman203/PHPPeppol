@@ -99,6 +99,28 @@ class InvoiceLine {
     private ?string $linePeriodEndDate = null;
 
     /**
+     * @var string|null Référence article vendeur (BT-155)
+     */
+    private ?string $sellerItemId = null;
+
+    /**
+     * @var string|null Référence article acheteur (BT-156)
+     */
+    private ?string $buyerItemId = null;
+
+    /**
+     * @var string|null Code de classification article (BT-158)
+     *                  Ex : code UNSPSC ou CPV
+     */
+    private ?string $itemClassificationCode = null;
+
+    /**
+     * @var string Schéma de classification (listID de BT-158)
+     *             Ex : 'STI' pour UNSPSC, 'CV2' pour CPV
+     */
+    private string $itemClassificationListId = 'STI';
+
+    /**
      * @var float Somme des remises de ligne (BT-136)
      */
     private float $sumOfLineAllowances = 0.0;
@@ -144,6 +166,10 @@ class InvoiceLine {
         $this->orderLineReference = null;
         $this->linePeriodStartDate = null;
         $this->linePeriodEndDate = null;
+        $this->sellerItemId = null;
+        $this->buyerItemId = null;
+        $this->itemClassificationCode = null;
+        $this->itemClassificationListId = 'STI';
         foreach ($lineAllowanceCharges as $ac) {
             $this->addAllowanceCharge($ac);
         }
@@ -309,6 +335,41 @@ class InvoiceLine {
     }
 
     /**
+     * Définit la référence article vendeur (BT-155)
+     *
+     * @param string $id Identifiant article dans le système vendeur
+     * @return self
+     */
+    public function setSellerItemId(string $id): self {
+        $this->sellerItemId = $id;
+        return $this;
+    }
+
+    /**
+     * Définit la référence article acheteur (BT-156)
+     *
+     * @param string $id Identifiant article dans le système acheteur
+     * @return self
+     */
+    public function setBuyerItemId(string $id): self {
+        $this->buyerItemId = $id;
+        return $this;
+    }
+
+    /**
+     * Définit le code de classification article (BT-158)
+     *
+     * @param string $code     Code de classification (ex : code UNSPSC ou CPV)
+     * @param string $listId   Schéma de classification — 'STI' = UNSPSC, 'CV2' = CPV (défaut : 'STI')
+     * @return self
+     */
+    public function setItemClassificationCode(string $code, string $listId = 'STI'): self {
+        $this->itemClassificationCode = $code;
+        $this->itemClassificationListId = $listId;
+        return $this;
+    }
+
+    /**
      * Valide la ligne de facture
      * 
      * @param array<float>|null $allowedVatRates Taux de TVA autorisés (ex: pour validation BE)
@@ -374,9 +435,13 @@ class InvoiceLine {
             'lineNote' => $this->lineNote,
             'orderLineReference' => $this->orderLineReference,
             'linePeriod' => ($this->linePeriodStartDate !== null || $this->linePeriodEndDate !== null) ? [
-        'startDate' => $this->linePeriodStartDate,
-        'endDate' => $this->linePeriodEndDate,
+                'startDate' => $this->linePeriodStartDate,
+                'endDate' => $this->linePeriodEndDate,
             ] : null,
+            'sellerItemId' => $this->sellerItemId,
+            'buyerItemId' => $this->buyerItemId,
+            'itemClassificationCode' => $this->itemClassificationCode,
+            'itemClassificationListId' => $this->itemClassificationListId,
         ];
     }
 
