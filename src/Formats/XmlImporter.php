@@ -123,7 +123,7 @@ class XmlImporter {
         $anomalies = [];
 
         // Chargement des données dans l'ordre logique
-        self::loadBasicData($invoice, $xpath);
+        self::loadBasicData($invoice, $xpath, $strict, $anomalies);
         self::loadSeller($invoice, $xpath);
         self::loadBuyer($invoice, $xpath);
         self::loadPaymentInfo($invoice, $xpath, $strict, $anomalies);
@@ -205,14 +205,17 @@ class XmlImporter {
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadBasicData(InvoiceBase $invoice, \DOMXPath $xpath): void {
+    private static function loadBasicData(InvoiceBase $invoice, \DOMXPath $xpath, bool $strict, array &$anomalies): void {
         // BT-9 — Date d'échéance
         $dueDate = self::getXPathValue($xpath, '//cbc:DueDate');
         if ($dueDate) {
             try {
                 $invoice->setDueDate($dueDate);
             } catch (\Exception $e) {
-                
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('BT-9 : date d\'échéance invalide « %s » ignorée — %s', $dueDate, $e->getMessage());
             }
         }
 
@@ -222,7 +225,10 @@ class XmlImporter {
             try {
                 $invoice->setDeliveryDate($deliveryDate);
             } catch (\Exception $e) {
-                
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('BT-72 : date de livraison invalide « %s » ignorée — %s', $deliveryDate, $e->getMessage());
             }
         }
 
@@ -293,7 +299,23 @@ class XmlImporter {
             try {
                 $invoice->setPrecedingInvoiceReference($precedingNumber, $precedingDate ?: null);
             } catch (\Exception $e) {
-                
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('BG-3 : référence facture précédente invalide ignorée — %s', $e->getMessage());
+            }
+        }
+// BG-14 — Période de facturation en-tête (BT-73 + BT-74)
+        $periodStart = self::getXPathValue($xpath, '//ubl:Invoice/cac:InvoicePeriod/cbc:StartDate');
+        $periodEnd = self::getXPathValue($xpath, '//ubl:Invoice/cac:InvoicePeriod/cbc:EndDate');
+        if ($periodStart !== null || $periodEnd !== null) {
+            try {
+                $invoice->setInvoicePeriod($periodStart, $periodEnd);
+            } catch (\Exception $e) {
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('BG-14 : période de facturation en-tête invalide ignorée — %s', $e->getMessage());
             }
         }
     }
@@ -632,7 +654,7 @@ class XmlImporter {
         $lines = $xpath->query('//cac:InvoiceLine');
 
         foreach ($lines as $lineNode) {
-            $lineId   = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
+            $lineId = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
             $lineName = self::getXPathValue($xpath, 'cac:Item/cbc:Name', null, $lineNode);
 
             if (!$lineId || !$lineName) {
@@ -640,24 +662,24 @@ class XmlImporter {
             }
 
             $quantityNode = $xpath->query('cbc:InvoicedQuantity', $lineNode)->item(0);
-            $quantity     = $quantityNode ? (float) $quantityNode->nodeValue : 0;
-            $unitCode     = $quantityNode?->getAttribute('unitCode') ?? 'C62';
+            $quantity = $quantityNode ? (float) $quantityNode->nodeValue : 0;
+            $unitCode = $quantityNode?->getAttribute('unitCode') ?? 'C62';
 
             if ($quantity <= 0) {
                 continue;
             }
 
-            $unitPrice   = (float) self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
+            $unitPrice = (float) self::getXPathValue($xpath, 'cac:Price/cbc:PriceAmount', '0', $lineNode);
             $vatCategory = self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', 'S', $lineNode);
-            $vatRate     = (float) self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
+            $vatRate = (float) self::getXPathValue($xpath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', '0', $lineNode);
             $description = self::getXPathValue($xpath, 'cac:Item/cbc:Description', null, $lineNode);
 
             // Création de la ligne
             $line = null;
             try {
                 $line = new InvoiceLine(
-                    $lineId, $lineName, $quantity, $unitCode,
-                    $unitPrice, $vatCategory, $vatRate, $description
+                        $lineId, $lineName, $quantity, $unitCode,
+                        $unitPrice, $vatCategory, $vatRate, $description
                 );
             } catch (\InvalidArgumentException $e) {
                 if ($strict) {
@@ -666,15 +688,15 @@ class XmlImporter {
                 // Mode lenient : unitCode non standard → injection via Reflection
                 try {
                     $line = new InvoiceLine(
-                        $lineId, $lineName, $quantity, 'C62',
-                        $unitPrice, $vatCategory, $vatRate, $description
+                            $lineId, $lineName, $quantity, 'C62',
+                            $unitPrice, $vatCategory, $vatRate, $description
                     );
                     $ref = new \ReflectionProperty(InvoiceLine::class, 'unitCode');
                     $ref->setAccessible(true);
                     $ref->setValue($line, $unitCode);
                     $anomalies[] = sprintf(
-                        'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
-                        $lineId, $unitCode, $e->getMessage()
+                            'Ligne %s : unitCode non standard « %s » chargé tel quel — %s',
+                            $lineId, $unitCode, $e->getMessage()
                     );
                 } catch (\Exception $e2) {
                     $anomalies[] = sprintf('Ligne %s ignorée : %s', $lineId, $e2->getMessage());
@@ -696,28 +718,44 @@ class XmlImporter {
             if ($lineNote !== null) {
                 $line->setLineNote($lineNote);
             }
-            
-            
+
+            // BG-26 — Période de facturation de ligne (BT-134 + BT-135)
+            $linePeriodStart = self::getXPathValue($xpath, 'cac:InvoicePeriod/cbc:StartDate', null, $lineNode);
+            $linePeriodEnd = self::getXPathValue($xpath, 'cac:InvoicePeriod/cbc:EndDate', null, $lineNode);
+            if ($linePeriodStart !== null || $linePeriodEnd !== null) {
+                try {
+                    $line->setLinePeriod($linePeriodStart, $linePeriodEnd);
+                } catch (\Exception $e) {
+                    if ($strict) {
+                        throw $e;
+                    }
+                    $anomalies[] = sprintf(
+                            'Ligne %s — BG-26 : période de facturation invalide ignorée — %s',
+                            $lineId, $e->getMessage()
+                    );
+                }
+            }
+
             // BG-28 — Remises et majorations au niveau ligne
             $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
             foreach ($lineAcs as $lacNode) {
                 $lacChargeIndicator = strtolower(
-                    self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
-                ) === 'true';
-                $lacAmount     = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
-                $lacBase       = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
-                $lacPercent    = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
+                                self::getXPathValue($xpath, 'cbc:ChargeIndicator', 'false', $lacNode)
+                        ) === 'true';
+                $lacAmount = (float) self::getXPathValue($xpath, 'cbc:Amount', '0', $lacNode);
+                $lacBase = self::getXPathValue($xpath, 'cbc:BaseAmount', null, $lacNode);
+                $lacPercent = self::getXPathValue($xpath, 'cbc:MultiplierFactorNumeric', null, $lacNode);
                 $lacReasonCode = self::getXPathValue($xpath, 'cbc:AllowanceChargeReasonCode', null, $lacNode);
-                $lacReason     = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
-                $lacVatCat     = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
-                $lacVatRate    = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
+                $lacReason = self::getXPathValue($xpath, 'cbc:AllowanceChargeReason', null, $lacNode);
+                $lacVatCat = self::getXPathValue($xpath, 'cac:TaxCategory/cbc:ID', 'S', $lacNode);
+                $lacVatRate = (float) self::getXPathValue($xpath, 'cac:TaxCategory/cbc:Percent', '0', $lacNode);
 
                 try {
                     $lac = new AllowanceCharge(
-                        $lacChargeIndicator, $lacAmount, $lacVatCat, $lacVatRate,
-                        $lacBase    !== null ? (float) $lacBase    : null,
-                        $lacPercent !== null ? (float) $lacPercent : null,
-                        $lacReasonCode, $lacReason
+                            $lacChargeIndicator, $lacAmount, $lacVatCat, $lacVatRate,
+                            $lacBase !== null ? (float) $lacBase : null,
+                            $lacPercent !== null ? (float) $lacPercent : null,
+                            $lacReasonCode, $lacReason
                     );
                     $line->addAllowanceCharge($lac);
                 } catch (\InvalidArgumentException $e) {
@@ -725,8 +763,8 @@ class XmlImporter {
                         throw $e;
                     }
                     $anomalies[] = sprintf(
-                        'Ligne %s — AllowanceCharge ignoré : %s',
-                        $lineId, $e->getMessage()
+                            'Ligne %s — AllowanceCharge ignoré : %s',
+                            $lineId, $e->getMessage()
                     );
                 }
             }

@@ -84,8 +84,20 @@ class InvoiceLine {
     /**
      * @var string|null Référence de ligne de commande (BT-132)
      */
-    private ?string $orderLineReference = null;    
-    
+    private ?string $orderLineReference = null;
+
+    /**
+     * @var string|null Date de début de la période de facturation de ligne (BT-134)
+     *                  Format YYYY-MM-DD
+     */
+    private ?string $linePeriodStartDate = null;
+
+    /**
+     * @var string|null Date de fin de la période de facturation de ligne (BT-135)
+     *                  Format YYYY-MM-DD
+     */
+    private ?string $linePeriodEndDate = null;
+
     /**
      * @var float Somme des remises de ligne (BT-136)
      */
@@ -130,6 +142,8 @@ class InvoiceLine {
         $this->description = $description;
         $this->lineNote = null;
         $this->orderLineReference = null;
+        $this->linePeriodStartDate = null;
+        $this->linePeriodEndDate = null;
         foreach ($lineAllowanceCharges as $ac) {
             $this->addAllowanceCharge($ac);
         }
@@ -252,8 +266,7 @@ class InvoiceLine {
      * @param string $note Note libre
      * @return self
      */
-    public function setLineNote(string $note): self
-    {
+    public function setLineNote(string $note): self {
         $this->lineNote = $note;
         return $this;
     }
@@ -264,13 +277,37 @@ class InvoiceLine {
      * @param string $ref Référence (ex : numéro de ligne du bon de commande)
      * @return self
      */
-    public function setOrderLineReference(string $ref): self
-    {
+    public function setOrderLineReference(string $ref): self {
         $this->orderLineReference = $ref;
         return $this;
     }
-    
-    
+
+    /**
+     * Définit la période de facturation de la ligne (BG-26)
+     *
+     * @param string|null $startDate Date de début YYYY-MM-DD (BT-134)
+     * @param string|null $endDate   Date de fin YYYY-MM-DD (BT-135)
+     * @return self
+     * @throws \InvalidArgumentException
+     */
+    public function setLinePeriod(?string $startDate, ?string $endDate): self {
+        if ($startDate !== null && !\DateTime::createFromFormat('Y-m-d', $startDate)) {
+            throw new \InvalidArgumentException('Format de date de début de période de ligne invalide (YYYY-MM-DD)');
+        }
+        if ($endDate !== null && !\DateTime::createFromFormat('Y-m-d', $endDate)) {
+            throw new \InvalidArgumentException('Format de date de fin de période de ligne invalide (YYYY-MM-DD)');
+        }
+        if ($startDate !== null && $endDate !== null && $endDate < $startDate) {
+            throw new \InvalidArgumentException(
+                            'La date de fin de période de ligne ne peut pas être antérieure à la date de début'
+                    );
+        }
+
+        $this->linePeriodStartDate = $startDate;
+        $this->linePeriodEndDate = $endDate;
+        return $this;
+    }
+
     /**
      * Valide la ligne de facture
      * 
@@ -334,8 +371,12 @@ class InvoiceLine {
             'sumOfLineAllowances' => $this->sumOfLineAllowances,
             'sumOfLineCharges' => $this->sumOfLineCharges,
             'lineAllowanceCharges' => array_map(fn($ac) => $ac->toArray(), $this->lineAllowanceCharges),
-            'lineNote'             => $this->lineNote,
-            'orderLineReference'   => $this->orderLineReference,
+            'lineNote' => $this->lineNote,
+            'orderLineReference' => $this->orderLineReference,
+            'linePeriod' => ($this->linePeriodStartDate !== null || $this->linePeriodEndDate !== null) ? [
+        'startDate' => $this->linePeriodStartDate,
+        'endDate' => $this->linePeriodEndDate,
+            ] : null,
         ];
     }
 
@@ -391,8 +432,20 @@ class InvoiceLine {
     public function getSumOfLineCharges(): float {
         return $this->sumOfLineCharges;
     }
-    
-    public function getLineNote(): ?string { return $this->lineNote; }
-    public function getOrderLineReference(): ?string { return $this->orderLineReference; }
-    
+
+    public function getLineNote(): ?string {
+        return $this->lineNote;
+    }
+
+    public function getOrderLineReference(): ?string {
+        return $this->orderLineReference;
+    }
+
+    public function getLinePeriodStartDate(): ?string {
+        return $this->linePeriodStartDate;
+    }
+
+    public function getLinePeriodEndDate(): ?string {
+        return $this->linePeriodEndDate;
+    }
 }

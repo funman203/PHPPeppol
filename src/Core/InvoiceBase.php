@@ -117,6 +117,18 @@ abstract class InvoiceBase implements \JsonSerializable {
     protected ?string $invoiceNote = null;
 
     /**
+     * @var string|null Date de début de la période de facturation (BT-73)
+     *                  Format YYYY-MM-DD
+     */
+    protected ?string $invoicePeriodStartDate = null;
+
+    /**
+     * @var string|null Date de fin de la période de facturation (BT-74)
+     *                  Format YYYY-MM-DD
+     */
+    protected ?string $invoicePeriodEndDate = null;
+
+    /**
      * @var string|null Date de livraison au format YYYY-MM-DD (BT-72)
      */
     protected ?string $deliveryDate = null;
@@ -516,6 +528,35 @@ abstract class InvoiceBase implements \JsonSerializable {
      */
     public function setInvoiceNote(string $note): self {
         $this->invoiceNote = $note;
+        return $this;
+    }
+
+    /**
+     * Définit la période de facturation en-tête (BG-14)
+     *
+     * Au moins une des deux dates doit être fournie.
+     * Si les deux sont fournies, endDate doit être >= startDate.
+     *
+     * @param string|null $startDate Date de début YYYY-MM-DD (BT-73)
+     * @param string|null $endDate   Date de fin YYYY-MM-DD (BT-74)
+     * @return self
+     * @throws \InvalidArgumentException
+     */
+    public function setInvoicePeriod(?string $startDate, ?string $endDate): self {
+        if ($startDate !== null && !$this->validateDate($startDate)) {
+            throw new \InvalidArgumentException('Format de date de début de période invalide (YYYY-MM-DD)');
+        }
+        if ($endDate !== null && !$this->validateDate($endDate)) {
+            throw new \InvalidArgumentException('Format de date de fin de période invalide (YYYY-MM-DD)');
+        }
+        if ($startDate !== null && $endDate !== null && $endDate < $startDate) {
+            throw new \InvalidArgumentException(
+                            'La date de fin de période ne peut pas être antérieure à la date de début'
+                    );
+        }
+
+        $this->invoicePeriodStartDate = $startDate;
+        $this->invoicePeriodEndDate = $endDate;
         return $this;
     }
 
@@ -1138,6 +1179,10 @@ abstract class InvoiceBase implements \JsonSerializable {
             'projectReference' => $this->projectReference,
             'buyerAccountingReference' => $this->buyerAccountingReference,
             'invoiceNote' => $this->invoiceNote,
+            'invoicePeriod' => ($this->invoicePeriodStartDate !== null || $this->invoicePeriodEndDate !== null) ? [
+        'startDate' => $this->invoicePeriodStartDate,
+        'endDate' => $this->invoicePeriodEndDate,
+            ] : null,
             'precedingInvoice' => $this->precedingInvoiceNumber !== null ? [
         'number' => $this->precedingInvoiceNumber,
         'issueDate' => $this->precedingInvoiceDate,
@@ -1420,8 +1465,24 @@ abstract class InvoiceBase implements \JsonSerializable {
     public function getVatBreakdown(): array {
         return $this->vatBreakdown;
     }
-    
-    public function getTotalVatAmount(): float { return $this->totalVatAmount; }
-    
-    
+
+    public function getTotalVatAmount(): float {
+        return $this->totalVatAmount;
+    }
+
+    /**
+     * Retourne la date de début de la période de facturation (BT-73), ou null
+     * @return string|null
+     */
+    public function getInvoicePeriodStartDate(): ?string {
+        return $this->invoicePeriodStartDate;
+    }
+
+    /**
+     * Retourne la date de fin de la période de facturation (BT-74), ou null
+     * @return string|null
+     */
+    public function getInvoicePeriodEndDate(): ?string {
+        return $this->invoicePeriodEndDate;
+    }
 }

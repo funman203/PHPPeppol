@@ -66,6 +66,7 @@ class XmlExporter {
         $xml->appendChild($invoice);
 
         $this->addDocumentHeader($xml, $invoice);
+        $this->addInvoicePeriod($xml, $invoice);
         $this->addPrecedingInvoiceReference($xml, $invoice);
         $this->addReferences($xml, $invoice);
         $this->addAttachedDocuments($xml, $invoice);
@@ -115,6 +116,28 @@ class XmlExporter {
         if ($this->invoice->getBuyerReference()) {
             $this->addElement($xml, $invoice, 'cbc:BuyerReference', $this->invoice->getBuyerReference());
         }
+    }
+
+// =========================================================================
+// BG-14 — Période de facturation en-tête
+// =========================================================================
+
+    private function addInvoicePeriod(\DOMDocument $xml, \DOMElement $invoice): void {
+        if ($this->invoice->getInvoicePeriodStartDate() === null && $this->invoice->getInvoicePeriodEndDate() === null) {
+            return;
+        }
+
+        $period = $xml->createElementNS(
+                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                'cac:InvoicePeriod'
+        );
+        if ($this->invoice->getInvoicePeriodStartDate()) {
+            $this->addElement($xml, $period, 'cbc:StartDate', $this->invoice->getInvoicePeriodStartDate());
+        }
+        if ($this->invoice->getInvoicePeriodEndDate()) {
+            $this->addElement($xml, $period, 'cbc:EndDate', $this->invoice->getInvoicePeriodEndDate());
+        }
+        $invoice->appendChild($period);
     }
 
     // =========================================================================
@@ -656,7 +679,7 @@ class XmlExporter {
             );
 
             $this->addElement($xml, $invoiceLine, 'cbc:ID', $line->getId());
-            
+
             // BT-132 — Référence de ligne de commande
             if ($line->getOrderLineReference()) {
                 $orderLineRef = $xml->createElementNS(
@@ -670,6 +693,21 @@ class XmlExporter {
             // BT-127 — Note de ligne
             if ($line->getLineNote()) {
                 $this->addElement($xml, $invoiceLine, 'cbc:Note', $line->getLineNote());
+            }
+
+            // BG-26 — Période de facturation de ligne
+            if ($line->getLinePeriodStartDate() !== null || $line->getLinePeriodEndDate() !== null) {
+                $linePeriod = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:InvoicePeriod'
+                );
+                if ($line->getLinePeriodStartDate()) {
+                    $this->addElement($xml, $linePeriod, 'cbc:StartDate', $line->getLinePeriodStartDate());
+                }
+                if ($line->getLinePeriodEndDate()) {
+                    $this->addElement($xml, $linePeriod, 'cbc:EndDate', $line->getLinePeriodEndDate());
+                }
+                $invoiceLine->appendChild($linePeriod);
             }
 
             $quantity = $xml->createElementNS(
