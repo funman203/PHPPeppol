@@ -148,14 +148,17 @@ class XmlExporter {
 
     private function addReferences(\DOMDocument $xml, \DOMElement $invoice): void {
         // BT-13 / BT-14 — OrderReference
-        if ($this->invoice->getPurchaseOrderReference() || $this->invoice->getSalesOrderReference()) {
+        if ($this->invoice->getPurchaseOrderReference() !== null || $this->invoice->getSalesOrderReference() !== null) {
             $orderRef = $xml->createElementNS(
                     'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
                     'cac:OrderReference'
             );
-            if ($this->invoice->getPurchaseOrderReference()) {
-                $this->addElement($xml, $orderRef, 'cbc:ID', $this->invoice->getPurchaseOrderReference());
-            }
+            // cbc:ID est obligatoire dans cac:OrderReference (BR-42)
+            // Si BT-13 absent mais BT-14 présent, on utilise "NA" comme sentinelle
+            $this->addElement(
+                    $xml, $orderRef, 'cbc:ID',
+                    $this->invoice->getPurchaseOrderReference() ?? 'NA'
+            );
             if ($this->invoice->getSalesOrderReference()) {
                 $this->addElement($xml, $orderRef, 'cbc:SalesOrderID', $this->invoice->getSalesOrderReference());
             }
@@ -653,6 +656,21 @@ class XmlExporter {
             );
 
             $this->addElement($xml, $invoiceLine, 'cbc:ID', $line->getId());
+            
+            // BT-132 — Référence de ligne de commande
+            if ($line->getOrderLineReference()) {
+                $orderLineRef = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:OrderLineReference'
+                );
+                $this->addElement($xml, $orderLineRef, 'cbc:LineID', $line->getOrderLineReference());
+                $invoiceLine->appendChild($orderLineRef);
+            }
+
+            // BT-127 — Note de ligne
+            if ($line->getLineNote()) {
+                $this->addElement($xml, $invoiceLine, 'cbc:Note', $line->getLineNote());
+            }
 
             $quantity = $xml->createElementNS(
                     'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',

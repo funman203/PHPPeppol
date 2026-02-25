@@ -77,6 +77,16 @@ class InvoiceLine {
     private array $lineAllowanceCharges = [];
 
     /**
+     * @var string|null Note de ligne libre (BT-127)
+     */
+    private ?string $lineNote = null;
+
+    /**
+     * @var string|null Référence de ligne de commande (BT-132)
+     */
+    private ?string $orderLineReference = null;    
+    
+    /**
      * @var float Somme des remises de ligne (BT-136)
      */
     private float $sumOfLineAllowances = 0.0;
@@ -118,6 +128,8 @@ class InvoiceLine {
         $this->setVatCategory($vatCategory);
         $this->setVatRate($vatRate, $vatCategory);
         $this->description = $description;
+        $this->lineNote = null;
+        $this->orderLineReference = null;
         foreach ($lineAllowanceCharges as $ac) {
             $this->addAllowanceCharge($ac);
         }
@@ -235,6 +247,31 @@ class InvoiceLine {
     }
 
     /**
+     * Définit la note de ligne (BT-127)
+     *
+     * @param string $note Note libre
+     * @return self
+     */
+    public function setLineNote(string $note): self
+    {
+        $this->lineNote = $note;
+        return $this;
+    }
+
+    /**
+     * Définit la référence de ligne de commande (BT-132)
+     *
+     * @param string $ref Référence (ex : numéro de ligne du bon de commande)
+     * @return self
+     */
+    public function setOrderLineReference(string $ref): self
+    {
+        $this->orderLineReference = $ref;
+        return $this;
+    }
+    
+    
+    /**
      * Valide la ligne de facture
      * 
      * @param array<float>|null $allowedVatRates Taux de TVA autorisés (ex: pour validation BE)
@@ -297,6 +334,8 @@ class InvoiceLine {
             'sumOfLineAllowances' => $this->sumOfLineAllowances,
             'sumOfLineCharges' => $this->sumOfLineCharges,
             'lineAllowanceCharges' => array_map(fn($ac) => $ac->toArray(), $this->lineAllowanceCharges),
+            'lineNote'             => $this->lineNote,
+            'orderLineReference'   => $this->orderLineReference,
         ];
     }
 
@@ -352,4 +391,8 @@ class InvoiceLine {
     public function getSumOfLineCharges(): float {
         return $this->sumOfLineCharges;
     }
+    
+    public function getLineNote(): ?string { return $this->lineNote; }
+    public function getOrderLineReference(): ?string { return $this->orderLineReference; }
+    
 }

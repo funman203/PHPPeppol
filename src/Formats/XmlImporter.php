@@ -685,6 +685,19 @@ class XmlImporter {
                 continue;
             }
 
+            // BT-132 — Référence de ligne de commande
+            $orderLineRef = self::getXPathValue($xpath, 'cac:OrderLineReference/cbc:LineID', null, $lineNode);
+            if ($orderLineRef !== null) {
+                $line->setOrderLineReference($orderLineRef);
+            }
+
+            // BT-127 — Note de ligne
+            $lineNote = self::getXPathValue($xpath, 'cbc:Note', null, $lineNode);
+            if ($lineNote !== null) {
+                $line->setLineNote($lineNote);
+            }
+            
+            
             // BG-28 — Remises et majorations au niveau ligne
             $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
             foreach ($lineAcs as $lacNode) {
