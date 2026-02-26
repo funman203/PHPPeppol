@@ -435,8 +435,8 @@ class InvoiceLine {
             'lineNote' => $this->lineNote,
             'orderLineReference' => $this->orderLineReference,
             'linePeriod' => ($this->linePeriodStartDate !== null || $this->linePeriodEndDate !== null) ? [
-                'startDate' => $this->linePeriodStartDate,
-                'endDate' => $this->linePeriodEndDate,
+        'startDate' => $this->linePeriodStartDate,
+        'endDate' => $this->linePeriodEndDate,
             ] : null,
             'sellerItemId' => $this->sellerItemId,
             'buyerItemId' => $this->buyerItemId,
@@ -512,5 +512,21 @@ class InvoiceLine {
 
     public function getLinePeriodEndDate(): ?string {
         return $this->linePeriodEndDate;
+    }
+
+    public function getSellerItemId(): ?string {
+        return $this->sellerItemId;
+    }
+
+    public function getBuyerItemId(): ?string {
+        return $this->buyerItemId;
+    }
+
+    public function getItemClassificationCode(): ?string {
+        return $this->itemClassificationCode;
+    }
+
+    public function getItemClassificationListId(): string {
+        return $this->itemClassificationListId;
     }
 }
