@@ -50,7 +50,7 @@
     "scripts": {
         "test": "phpunit",
 	"test:unit": "phpunit --testsuite Unit",
-        "test:integration": "phpunit --testsuite Integration"
+        "test:integration": "phpunit --testsuite Integration",
         "phpstan": "phpstan analyse src --level=8",
         "install-schematron": "@php bin/install-schematron.php",
         "schematron-cache-clear": "php -r \"require 'vendor/autoload.php'; (new Peppol\\Validation\\SchematronValidator())->clearCache();\""
