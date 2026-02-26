@@ -767,7 +767,7 @@ class XmlImporter {
             if ($classificationNodes && $classificationNodes->length > 0) {
                 $classificationNode = $classificationNodes->item(0);
                 $classificationCode = trim($classificationNode->nodeValue);
-                $listId = ($$classificationNode instanceof \DOMElement) ? ($classificationNode->getAttribute('listID') ?: 'STI') : 'STI';
+                $listId = ($classificationNode instanceof \DOMElement) ? ($classificationNode->getAttribute('listID') ?: 'STI') : 'STI';
                 if ($classificationCode !== '') {
                     $line->setItemClassificationCode($classificationCode, $listId);
                 }
