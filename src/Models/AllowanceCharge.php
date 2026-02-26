@@ -33,7 +33,7 @@ class AllowanceCharge
     /**
      * Codes de raison de remise selon UNCL5189 (liste non exhaustive)
      *
-     * @var array<string, string>
+     * @var array<int|string, string>
      */
     public const ALLOWANCE_REASON_CODES = [
         '41'  => 'Bonus for works ahead of schedule',

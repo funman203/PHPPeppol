@@ -425,7 +425,7 @@ class XmlImporter {
         $endpointId = self::getXPathValue($xpath, "{$basePath}/cbc:EndpointID");
         if ($endpointId) {
             $endpointNode = $xpath->query("{$basePath}/cbc:EndpointID")->item(0);
-            $schemeId = ($endpointNode instanceof \DOMElement) ? $endpointNode?->getAttribute('schemeID') ?? '9925' : '9925';
+            $schemeId = ($endpointNode instanceof \DOMElement) ? ($endpointNode->getAttribute('schemeID') ?: '9925') : '9925';
             try {
                 $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
             } catch (\Exception $e) {

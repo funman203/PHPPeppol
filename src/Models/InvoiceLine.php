@@ -129,7 +129,9 @@ class InvoiceLine {
      * @var float Somme des majorations de ligne (BT-141)
      */
     private float $sumOfLineCharges = 0.0;
-
+    private ?string $standardItemId = null;
+    private ?string $standardItemSchemeId = null;
+    private ?string $originCountryCode = null;
     /**
      * Constructeur
      * 
@@ -369,6 +371,19 @@ class InvoiceLine {
         return $this;
     }
 
+// BT-157
+    public function setStandardItemId(?string $id, string $schemeId = '0160'): static {
+        $this->standardItemId = $id;
+        $this->standardItemSchemeId = $id !== null ? $schemeId : null;
+        return $this;
+    }
+
+// BT-159
+    public function setOriginCountryCode(?string $code): static {
+        $this->originCountryCode = $code !== null ? strtoupper($code) : null;
+        return $this;
+    }
+
     /**
      * Valide la ligne de facture
      * 
@@ -528,5 +543,17 @@ class InvoiceLine {
 
     public function getItemClassificationListId(): string {
         return $this->itemClassificationListId;
+    }
+
+    public function getStandardItemId(): ?string {
+        return $this->standardItemId;
+    }
+
+    public function getStandardItemSchemeId(): ?string {
+        return $this->standardItemSchemeId;
+    }
+
+    public function getOriginCountryCode(): ?string {
+        return $this->originCountryCode;
     }
 }

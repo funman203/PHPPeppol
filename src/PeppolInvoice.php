@@ -141,8 +141,9 @@ class PeppolInvoice extends EN16931Invoice
      * @throws \InvalidArgumentException             En mode strict si le XML ou une donnée est invalide
      * @throws \Peppol\Exceptions\ImportWarningException En mode lenient si des anomalies sont détectées
      */
-    public static function fromXml(string $xmlContent, bool $strict = true): self
+    public static function fromXml(string $xmlContent, bool $strict = true): static
     {
+        /** @var static */
         return XmlImporter::fromUbl($xmlContent, self::class, $strict);
     }
 

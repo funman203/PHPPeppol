@@ -75,7 +75,6 @@ class AttachedDocument
      * 
      * @param string $filePath Chemin du fichier
      * @param string|null $description Description
-     * @param string|null $documentType Type de document
      * @return self
      * @throws \InvalidArgumentException
      */

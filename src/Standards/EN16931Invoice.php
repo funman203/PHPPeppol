@@ -57,7 +57,7 @@ class EN16931Invoice extends InvoiceBase
      * @param string|null $email Email
      * @param string|null $electronicAddressScheme Schéma adresse électronique
      * @param string|null $electronicAddress Adresse électronique
-     * @return self
+     * @return static
      */
     public function setSellerFromData(
         string $name,
@@ -95,7 +95,7 @@ class EN16931Invoice extends InvoiceBase
      * @param string|null $email Email
      * @param string|null $electronicAddressScheme Schéma adresse électronique
      * @param string|null $electronicAddress Adresse électronique
-     * @return self
+     * @return static
      */
     public function setBuyerFromData(
         string $name,
@@ -131,7 +131,7 @@ class EN16931Invoice extends InvoiceBase
      * @param string $vatCategory Catégorie TVA
      * @param float $vatRate Taux TVA
      * @param string|null $description Description
-     * @return self
+     * @return static
      */
     public function addLine(
         string $id,
