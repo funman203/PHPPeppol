@@ -369,7 +369,7 @@ class XmlImporter {
         $endpointId = self::getXPathValue($xpath, "{$basePath}/cbc:EndpointID");
         if ($endpointId) {
             $endpointNode = $xpath->query("{$basePath}/cbc:EndpointID")->item(0);
-            $schemeId = $endpointNode?->getAttribute('schemeID') ?? '9925';
+            $schemeId = ($endpointNode instanceof \DOMElement) ? ($endpointNode->getAttribute('schemeID') ?: '9925') : '9925';
             try {
                 $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
             } catch (\Exception $e) {
@@ -663,7 +663,7 @@ class XmlImporter {
 
             $quantityNode = $xpath->query('cbc:InvoicedQuantity', $lineNode)->item(0);
             $quantity = $quantityNode ? (float) $quantityNode->nodeValue : 0;
-            $unitCode = $quantityNode?->getAttribute('unitCode') ?? 'C62';
+            $unitCode = ($quantityNode instanceof \DOMElement) ? ($quantityNode->getAttribute('unitCode') ?: 'C62') : 'C62';
 
             if ($quantity <= 0) {
                 continue;
@@ -753,7 +753,7 @@ class XmlImporter {
             if ($standardItemNodes && $standardItemNodes->length > 0) {
                 $standardItemNode = $standardItemNodes->item(0);
                 $standardItemId = trim($standardItemNode->nodeValue);
-                $standardSchemeId = $standardItemNode->getAttribute('schemeID') ?: '0160';
+                $standardSchemeId = ($standardItemNode instanceof \DOMElement) ? ($standardItemNode->getAttribute('schemeID') ?: '0160') : '0160';
                 if ($standardItemId !== '') {
                     $line->setStandardItemId($standardItemId, $standardSchemeId);
                 }
@@ -774,7 +774,7 @@ class XmlImporter {
             $originCountry = self::getXPathValue($xpath, 'cac:Item/cac:OriginCountry/cbc:IdentificationCode', null, $lineNode);
             if ($originCountry !== null) {
                 $line->setOriginCountryCode($originCountry);
-            }            
+            }
 
             // BG-28 — Remises et majorations au niveau ligne
             $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);

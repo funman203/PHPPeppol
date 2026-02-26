@@ -890,8 +890,9 @@ class XmlExporter {
     // =========================================================================
     // Schematron (inchangé)
     // =========================================================================
-
+/** @phpstan-ignore property.onlyWritten */
     private bool $enableSchematronValidation = false;
+    /** @phpstan-ignore property.onlyWritten */
     private array $schematronLevels = ['ublbe', 'en16931'];
 
     public function enableSchematronValidation(bool $enable = true, array $levels = ['ublbe', 'en16931']): self {

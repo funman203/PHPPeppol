@@ -18,7 +18,7 @@ final class InvoiceConstants
 {
     /**
      * Codes de type de facture selon UNCL1001
-     * @var array<string, string>
+     * @var array<int|string, string>
      */
     public const INVOICE_TYPE_CODES = [
         '380' => 'Facture commerciale',
@@ -56,7 +56,7 @@ final class InvoiceConstants
     
     /**
      * Codes de moyens de paiement selon UNCL4461
-     * @var array<string, string>
+     * @var array<int|string, string>
      */
     public const PAYMENT_MEANS_CODES = [
         '1' => 'Instrument non défini',
@@ -93,7 +93,7 @@ final class InvoiceConstants
     
     /**
      * Schémas d'identification électronique selon ISO 6523 ICD
-     * @var array<string, string>
+     * @var array<int|string, string>
      */
     public const ELECTRONIC_ADDRESS_SCHEMES = [
         '0002' => 'SIRENE (France)',
