@@ -810,7 +810,31 @@ class XmlExporter {
                 $this->addElement($xml, $buyersItemId, 'cbc:ID', $line->getBuyerItemId());
                 $item->appendChild($buyersItemId);
             }
+// BT-157 — Identifiant standard article (EAN/GTIN)
+            if ($line->getStandardItemId()) {
+                $standardItemId = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:StandardItemIdentification'
+                );
+                $standardId = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                        'cbc:ID',
+                        htmlspecialchars($line->getStandardItemId(), ENT_XML1, 'UTF-8')
+                );
+                $standardId->setAttribute('schemeID', $line->getStandardItemSchemeId() ?? '0160');
+                $standardItemId->appendChild($standardId);
+                $item->appendChild($standardItemId);
+            }
 
+// BT-159 — Pays d'origine
+            if ($line->getOriginCountryCode()) {
+                $originCountry = $xml->createElementNS(
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                        'cac:OriginCountry'
+                );
+                $this->addElement($xml, $originCountry, 'cbc:IdentificationCode', $line->getOriginCountryCode());
+                $item->appendChild($originCountry);
+            }
 // BT-158 — Code de classification article
             if ($line->getItemClassificationCode()) {
                 $commodityClassification = $xml->createElementNS(
@@ -890,8 +914,9 @@ class XmlExporter {
     // =========================================================================
     // Schematron (inchangé)
     // =========================================================================
-/** @phpstan-ignore property.onlyWritten */
+    /** @phpstan-ignore property.onlyWritten */
     private bool $enableSchematronValidation = false;
+
     /** @phpstan-ignore property.onlyWritten */
     private array $schematronLevels = ['ublbe', 'en16931'];
 

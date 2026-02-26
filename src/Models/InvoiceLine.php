@@ -287,14 +287,14 @@ class InvoiceLine {
         $this->calculate();
         return $this;
     }
-
-    /**
+ 
+   /**
      * Définit la note de ligne (BT-127)
      *
      * @param string $note Note libre
      * @return self
      */
-    public function setLineNote(string $note): self {
+    public function setLineNote(?string $note): self {
         $this->lineNote = $note;
         return $this;
     }
@@ -457,6 +457,8 @@ class InvoiceLine {
             'buyerItemId' => $this->buyerItemId,
             'itemClassificationCode' => $this->itemClassificationCode,
             'itemClassificationListId' => $this->itemClassificationListId,
+            'standardItemId' => $this->standardItemId,
+            'standardItemSchemeId' => $this->standardItemSchemeId,
         ];
     }
 
