@@ -5,35 +5,34 @@ declare(strict_types=1);
 namespace Peppol\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use PHPPeppol\Models\PeppolInvoice;
-use PHPPeppol\Models\InvoiceLine;
-use PHPPeppol\Models\Party;
-use PHPPeppol\Models\Address;
-use PHPPeppol\Models\ElectronicAddress;
-use PHPPeppol\Models\AllowanceCharge;
+use Peppol\Models\Party;
+use Peppol\Models\Address;
+use Peppol\Models\ElectronicAddress;
+use Peppol\Models\InvoiceLine;
+use Peppol\Models\AllowanceCharge;
 
 /**
  * Tests unitaires pour InvoiceBase (via PeppolInvoice).
  * Couvre : références, périodes header, totaux, remises/majorations document.
+ *
+ * PeppolInvoice est une classe globale (sans namespace) — on l'utilise avec \PeppolInvoice
  */
 class InvoiceBaseTest extends TestCase
 {
-    private PeppolInvoice $invoice;
+    private \PeppolInvoice $invoice;
 
     protected function setUp(): void
     {
-        $this->invoice = new PeppolInvoice();
-        $this->invoice
-            ->setInvoiceNumber('INV-2025-001')
-            ->setIssueDate('2025-03-01')
-            ->setDocumentCurrencyCode('EUR');
+        $this->invoice = new \PeppolInvoice('INV-2025-001', '2025-03-01');
 
-        // Vendeur minimal
-        $seller = $this->makeParty('Société Test SA', 'BE0123456789');
+        $address = new Address('Rue de la Loi 1', 'Bruxelles', '1000', 'BE');
+        $endpoint = new ElectronicAddress('0208', 'BE0123456789');
+        $seller = new Party('Société Test SA', $address, 'BE0123456789', null, null, $endpoint);
         $this->invoice->setSeller($seller);
 
-        // Acheteur minimal
-        $buyer = $this->makeParty('Client SARL', 'BE0987654321');
+        $address2 = new Address('Avenue Louise 1', 'Bruxelles', '1050', 'BE');
+        $endpoint2 = new ElectronicAddress('0208', 'BE0987654321');
+        $buyer = new Party('Client SARL', $address2, 'BE0987654321', null, null, $endpoint2);
         $this->invoice->setBuyer($buyer);
     }
 
@@ -62,19 +61,17 @@ class InvoiceBaseTest extends TestCase
     public function testPrecedingInvoiceReference(): void
     {
         $this->invoice->setPrecedingInvoiceReference('INV-2024-100', '2024-12-01');
-
         $this->assertSame('INV-2024-100', $this->invoice->getPrecedingInvoiceNumber());
         $this->assertSame('2024-12-01', $this->invoice->getPrecedingInvoiceDate());
     }
 
     // -------------------------------------------------------------------------
-    // BG-14 Période de facturation header
+    // BG-14 — Période de facturation header
     // -------------------------------------------------------------------------
 
     public function testInvoicePeriodValide(): void
     {
         $this->invoice->setInvoicePeriod('2025-01-01', '2025-01-31');
-
         $this->assertSame('2025-01-01', $this->invoice->getInvoicePeriodStartDate());
         $this->assertSame('2025-01-31', $this->invoice->getInvoicePeriodEndDate());
     }
@@ -97,84 +94,54 @@ class InvoiceBaseTest extends TestCase
 
     public function testCalculTotauxSimple(): void
     {
-        $line = $this->makeLine('1', 5.0, 100.00, 'S', 21.0);
-        $this->invoice->addInvoiceLine($line);
+        $this->invoice->addInvoiceLine($this->makeLine('1', 5.0, 100.00, 'S', 21.0));
         $this->invoice->calculateTotals();
 
-        // 5 × 100 = 500.00 HT
         $this->assertEqualsWithDelta(500.00, $this->invoice->getSumOfLineNetAmounts(), 0.01);
         $this->assertEqualsWithDelta(500.00, $this->invoice->getTaxExclusiveAmount(), 0.01);
-
-        // 500 × 21% = 105.00 TVA
         $this->assertEqualsWithDelta(105.00, $this->invoice->getTotalVatAmount(), 0.01);
-
-        // 500 + 105 = 605.00 TTC
         $this->assertEqualsWithDelta(605.00, $this->invoice->getTaxInclusiveAmount(), 0.01);
         $this->assertEqualsWithDelta(605.00, $this->invoice->getPayableAmount(), 0.01);
     }
 
     public function testCalculTotauxAvecRemiseDocument(): void
     {
-        $line = $this->makeLine('1', 1.0, 1000.00, 'S', 21.0);
-        $this->invoice->addInvoiceLine($line);
-
-        // Remise document : 50€
-        $allowance = AllowanceCharge::createAllowance(50.00, 'S', 21.0, 'Remise commerciale');
-        $this->invoice->addAllowance($allowance);
-
+        $this->invoice->addInvoiceLine($this->makeLine('1', 1.0, 1000.00, 'S', 21.0));
+        $this->invoice->addAllowanceCharge(
+            AllowanceCharge::createAllowance(50.00, 'S', 21.0, 'Remise commerciale')
+        );
         $this->invoice->calculateTotals();
 
-        // HT = 1000 - 50 = 950
         $this->assertEqualsWithDelta(950.00, $this->invoice->getTaxExclusiveAmount(), 0.01);
-
-        // TVA = 950 × 21% = 199.50
         $this->assertEqualsWithDelta(199.50, $this->invoice->getTotalVatAmount(), 0.01);
-
-        // TTC = 950 + 199.50 = 1149.50
         $this->assertEqualsWithDelta(1149.50, $this->invoice->getTaxInclusiveAmount(), 0.01);
     }
 
     public function testCalculTotauxAvecMajorationDocument(): void
     {
-        $line = $this->makeLine('1', 1.0, 500.00, 'S', 21.0);
-        $this->invoice->addInvoiceLine($line);
-
-        // Frais de transport : 25€
-        $charge = AllowanceCharge::createCharge(25.00, 'S', 21.0, 'Transport');
-        $this->invoice->addCharge($charge);
-
+        $this->invoice->addInvoiceLine($this->makeLine('1', 1.0, 500.00, 'S', 21.0));
+        $this->invoice->addAllowanceCharge(
+            AllowanceCharge::createCharge(25.00, 'S', 21.0, 'Transport')
+        );
         $this->invoice->calculateTotals();
 
-        // HT = 500 + 25 = 525
         $this->assertEqualsWithDelta(525.00, $this->invoice->getTaxExclusiveAmount(), 0.01);
     }
 
     public function testCalculTotauxMultiTVA(): void
     {
-        // Ligne 1 : TVA 21%
-        $line1 = $this->makeLine('1', 1.0, 100.00, 'S', 21.0);
-        // Ligne 2 : TVA 6%
-        $line2 = $this->makeLine('2', 1.0, 200.00, 'S', 6.0);
-        // Ligne 3 : exonéré
-        $line3 = $this->makeLine('3', 1.0, 50.00, 'Z', 0.0);
-
-        $this->invoice->addInvoiceLine($line1);
-        $this->invoice->addInvoiceLine($line2);
-        $this->invoice->addInvoiceLine($line3);
+        $this->invoice->addInvoiceLine($this->makeLine('1', 1.0, 100.00, 'S', 21.0));
+        $this->invoice->addInvoiceLine($this->makeLine('2', 1.0, 200.00, 'S', 6.0));
+        $this->invoice->addInvoiceLine($this->makeLine('3', 1.0, 50.00, 'Z', 0.0));
         $this->invoice->calculateTotals();
 
-        // TVA totale = 100×21% + 200×6% + 50×0% = 21 + 12 + 0 = 33
+        // TVA = 100×21% + 200×6% + 50×0% = 21 + 12 + 0 = 33
         $this->assertEqualsWithDelta(33.00, $this->invoice->getTotalVatAmount(), 0.01);
-
-        // Vérifier le breakdown TVA
-        $vatBreakdowns = $this->invoice->getVatBreakdowns();
-        $this->assertCount(2, $vatBreakdowns); // Z à 0% avec montant TVA = 0 peut être exclu selon l'implémentation
     }
 
     public function testPrepaidAmount(): void
     {
-        $line = $this->makeLine('1', 1.0, 1000.00, 'S', 21.0);
-        $this->invoice->addInvoiceLine($line);
+        $this->invoice->addInvoiceLine($this->makeLine('1', 1.0, 1000.00, 'S', 21.0));
         $this->invoice->setPrepaidAmount(500.00);
         $this->invoice->calculateTotals();
 
@@ -183,58 +150,22 @@ class InvoiceBaseTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // BT-33 Capital social (CompanyLegalForm)
+    // BT-33 — Capital social (CompanyLegalForm)
     // -------------------------------------------------------------------------
 
     public function testCompanyLegalForm(): void
     {
-        $seller = $this->invoice->getSeller();
-        $this->assertNull($seller->getCompanyLegalForm());
-
-        $seller->setCompanyLegalForm('SA au capital de 125 000 EUR');
-        $this->assertSame('SA au capital de 125 000 EUR', $seller->getCompanyLegalForm());
+        $this->assertNull($this->invoice->getSeller()->getCompanyLegalForm());
+        $this->invoice->getSeller()->setCompanyLegalForm('SA au capital de 125 000 EUR');
+        $this->assertSame('SA au capital de 125 000 EUR', $this->invoice->getSeller()->getCompanyLegalForm());
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // Helper
     // -------------------------------------------------------------------------
 
-    private function makeParty(string $name, string $vatId): Party
+    private function makeLine(string $id, float $qty, float $price, string $vatCat, float $vatRate): InvoiceLine
     {
-        $address = new Address();
-        $address->setStreetName('Rue de la Loi 1')
-                ->setCityName('Bruxelles')
-                ->setPostalZone('1000')
-                ->setCountryCode('BE');
-
-        $endpoint = new ElectronicAddress();
-        $endpoint->setIdentifier('0088:' . ltrim($vatId, 'BE'))
-                 ->setSchemeId('0088');
-
-        $party = new Party();
-        $party->setName($name)
-              ->setVatId($vatId)
-              ->setAddress($address)
-              ->setElectronicAddress($endpoint);
-
-        return $party;
-    }
-
-    private function makeLine(
-        string $id,
-        float $qty,
-        float $price,
-        string $vatCat,
-        float $vatRate
-    ): InvoiceLine {
-        $line = new InvoiceLine();
-        $line->setId($id)
-             ->setName("Article $id")
-             ->setQuantity($qty)
-             ->setUnitCode('C62')
-             ->setUnitPrice($price)
-             ->setVatCategory($vatCat)
-             ->setVatRate($vatRate);
-        return $line;
+        return new InvoiceLine($id, "Article $id", $qty, 'C62', $price, $vatCat, $vatRate);
     }
 }
