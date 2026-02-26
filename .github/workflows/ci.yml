@@ -1,0 +1,82 @@
+name: CI — PHPPeppol Tests
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php-version }} — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        php-version: [ "8.1", "8.2", "8.3" ]
+
+    steps:
+      # 1. Checkout du code
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Installation de PHP avec les extensions nécessaires
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: dom, libxml, simplexml, mbstring
+          coverage: xdebug
+          tools: composer:v2
+
+      # 3. Cache des dépendances Composer
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php${{ matrix.php-version }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php${{ matrix.php-version }}-composer-
+
+      # 4. Installation des dépendances
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      # 5. Vérification du code (si PHPStan est configuré)
+      - name: Static analysis (PHPStan)
+        run: vendor/bin/phpstan analyse src --level=5
+        continue-on-error: true   # Ne bloque pas le CI tant que PHPStan n'est pas configuré
+
+      # 6. Tests unitaires uniquement (rapides, sans dépendances)
+      - name: Unit tests
+        run: vendor/bin/phpunit --testsuite Unit --no-coverage
+
+      # 7. Tests d'intégration (round-trip XML)
+      - name: Integration tests
+        run: vendor/bin/phpunit --testsuite Integration --no-coverage
+
+      # 8. Suite complète avec couverture de code (PHP 8.2 seulement pour éviter la duplication)
+      - name: Full test suite with coverage
+        if: matrix.php-version == '8.2'
+        run: |
+          mkdir -p build/logs build/coverage
+          vendor/bin/phpunit --coverage-clover build/coverage/clover.xml --log-junit build/logs/junit.xml
+
+      # 9. Upload du rapport de couverture vers Codecov (optionnel)
+      - name: Upload coverage to Codecov
+        if: matrix.php-version == '8.2'
+        uses: codecov/codecov-action@v4
+        with:
+          file: build/coverage/clover.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      # 10. Publication des résultats de test comme annotations GitHub
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: build/logs/junit.xml
+        continue-on-error: true

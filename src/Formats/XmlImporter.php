@@ -736,42 +736,45 @@ class XmlImporter {
                 }
             }
 
-// BT-155 — Référence article vendeur
-            if ($line->getSellerItemId()) {
-                $sellersItemId = $xml->createElementNS(
-                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                        'cac:SellersItemIdentification'
-                );
-                $this->addElement($xml, $sellersItemId, 'cbc:ID', $line->getSellerItemId());
-                $item->appendChild($sellersItemId);
+            // BT-155 — Référence article vendeur
+            $sellerItemId = self::getXPathValue($xpath, 'cac:Item/cac:SellersItemIdentification/cbc:ID', null, $lineNode);
+            if ($sellerItemId !== null) {
+                $line->setSellerItemId($sellerItemId);
             }
 
-// BT-156 — Référence article acheteur
-            if ($line->getBuyerItemId()) {
-                $buyersItemId = $xml->createElementNS(
-                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                        'cac:BuyersItemIdentification'
-                );
-                $this->addElement($xml, $buyersItemId, 'cbc:ID', $line->getBuyerItemId());
-                $item->appendChild($buyersItemId);
+            // BT-156 — Référence article acheteur
+            $buyerItemId = self::getXPathValue($xpath, 'cac:Item/cac:BuyersItemIdentification/cbc:ID', null, $lineNode);
+            if ($buyerItemId !== null) {
+                $line->setBuyerItemId($buyerItemId);
             }
 
-// BT-158 — Code de classification article
-            if ($line->getItemClassificationCode()) {
-                $commodityClassification = $xml->createElementNS(
-                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                        'cac:CommodityClassification'
-                );
-                $classificationCode = $xml->createElementNS(
-                        'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
-                        'cbc:ItemClassificationCode',
-                        htmlspecialchars($line->getItemClassificationCode(), ENT_XML1, 'UTF-8')
-                );
-                $classificationCode->setAttribute('listID', $line->getItemClassificationListId());
-                $commodityClassification->appendChild($classificationCode);
-                $item->appendChild($commodityClassification);
+            // BT-157 — Identifiant standard article (EAN/GTIN)
+            $standardItemNodes = $xpath->query('cac:Item/cac:StandardItemIdentification/cbc:ID', $lineNode);
+            if ($standardItemNodes && $standardItemNodes->length > 0) {
+                $standardItemNode = $standardItemNodes->item(0);
+                $standardItemId = trim($standardItemNode->nodeValue);
+                $standardSchemeId = $standardItemNode->getAttribute('schemeID') ?: '0160';
+                if ($standardItemId !== '') {
+                    $line->setStandardItemId($standardItemId, $standardSchemeId);
+                }
             }
 
+            // BT-158 — Code de classification article
+            $classificationNodes = $xpath->query('cac:Item/cac:CommodityClassification/cbc:ItemClassificationCode', $lineNode);
+            if ($classificationNodes && $classificationNodes->length > 0) {
+                $classificationNode = $classificationNodes->item(0);
+                $classificationCode = trim($classificationNode->nodeValue);
+                $listId = $classificationNode->getAttribute('listID') ?: 'STI';
+                if ($classificationCode !== '') {
+                    $line->setItemClassificationCode($classificationCode, $listId);
+                }
+            }
+
+            // BT-159 — Pays d'origine article
+            $originCountry = self::getXPathValue($xpath, 'cac:Item/cac:OriginCountry/cbc:IdentificationCode', null, $lineNode);
+            if ($originCountry !== null) {
+                $line->setOriginCountryCode($originCountry);
+            }            
 
             // BG-28 — Remises et majorations au niveau ligne
             $lineAcs = $xpath->query('cac:AllowanceCharge', $lineNode);
