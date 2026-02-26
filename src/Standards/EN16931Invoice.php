@@ -162,7 +162,7 @@ class EN16931Invoice extends InvoiceBase
      * 
      * @param string $filePath Chemin du fichier
      * @param string|null $description Description
-     * @return self
+     * @return static
      */
     public function attachFile(
         string $filePath,
