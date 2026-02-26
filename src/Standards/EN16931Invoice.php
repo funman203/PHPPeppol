@@ -70,7 +70,7 @@ class EN16931Invoice extends InvoiceBase
         ?string $email = null,
         ?string $electronicAddressScheme = null,
         ?string $electronicAddress = null
-    ): self {
+    ): static {
         $address = new Address($streetName, $cityName, $postalZone, $countryCode);
         
         $electronicAddr = null;
@@ -107,7 +107,7 @@ class EN16931Invoice extends InvoiceBase
         ?string $email = null,
         ?string $electronicAddressScheme = null,
         ?string $electronicAddress = null
-    ): self {
+    ): static {
         $address = new Address($streetName, $cityName, $postalZone, $countryCode);
         
         $electronicAddr = null;
@@ -142,7 +142,7 @@ class EN16931Invoice extends InvoiceBase
         string $vatCategory,
         float $vatRate,
         ?string $description = null
-    ): self {
+    ): static {
         $line = new InvoiceLine(
             $id,
             $name,
@@ -167,7 +167,7 @@ class EN16931Invoice extends InvoiceBase
     public function attachFile(
         string $filePath,
         ?string $description = null,
-    ): self {
+    ): static {
         $document = AttachedDocument::fromFile($filePath, $description);
         return $this->attachDocument($document);
     }

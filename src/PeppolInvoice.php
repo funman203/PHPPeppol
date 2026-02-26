@@ -137,7 +137,7 @@ class PeppolInvoice extends EN16931Invoice
      *
      * @param string $xmlContent Contenu XML en chaîne, ou chemin vers un fichier XML
      * @param bool   $strict     true = mode strict (défaut), false = mode lenient
-     * @return self
+     * @return static
      * @throws \InvalidArgumentException             En mode strict si le XML ou une donnée est invalide
      * @throws \Peppol\Exceptions\ImportWarningException En mode lenient si des anomalies sont détectées
      */
