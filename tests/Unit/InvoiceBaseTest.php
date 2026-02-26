@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PHPPeppol\Tests\Unit;
+namespace Peppol\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use PHPPeppol\Models\PeppolInvoice;

@@ -16,18 +16,18 @@ class InvoiceLineTest extends TestCase
 {
     private InvoiceLine $line;
 
-    protected function setUp(): void
-    {
-        $this->line = new InvoiceLine();
-        $this->line
-            ->setId('1')
-            ->setName('Article test')
-            ->setQuantity(10.0)
-            ->setUnitCode('C62')
-            ->setUnitPrice(25.00)
-            ->setVatCategory('S')
-            ->setVatRate(21.0);
-    }
+protected function setUp(): void
+{
+    $this->line = new InvoiceLine(
+        id: '1',
+        name: 'Article test',
+        quantity: 10.0,
+        unitCode: 'C62',
+        unitPrice: 25.00,
+        vatCategory: 'S',
+        vatRate: 21.0
+    );
+}
 
     // -------------------------------------------------------------------------
     // Calcul lineAmount
