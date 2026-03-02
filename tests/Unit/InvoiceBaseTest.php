@@ -108,7 +108,7 @@ class InvoiceBaseTest extends TestCase
     {
         $this->invoice->addInvoiceLine($this->makeLine('1', 1.0, 1000.00, 'S', 21.0));
         $this->invoice->addAllowanceCharge(
-            AllowanceCharge::createAllowance(50.00, 'S', 21.0, 'Remise commerciale')
+            AllowanceCharge::createAllowance(amount: 50.00, vatCategory: 'S', vatRate: 21.0, reason: 'Remise commerciale')
         );
         $this->invoice->calculateTotals();
 
@@ -121,7 +121,7 @@ class InvoiceBaseTest extends TestCase
     {
         $this->invoice->addInvoiceLine($this->makeLine('1', 1.0, 500.00, 'S', 21.0));
         $this->invoice->addAllowanceCharge(
-            AllowanceCharge::createCharge(25.00, 'S', 21.0, 'Transport')
+            AllowanceCharge::createCharge(amount: 25.00, vatCategory: 'S', vatRate: 21.0, reason: 'Transport')
         );
         $this->invoice->calculateTotals();
 

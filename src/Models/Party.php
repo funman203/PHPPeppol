@@ -19,42 +19,47 @@ use Peppol\Core\InvoiceValidatorTrait;
 class Party
 {
     use InvoiceValidatorTrait;
-    
+
     /**
      * @var string Nom de la partie (BT-27, BT-44)
      */
     private string $name;
-    
+
     /**
      * @var string|null Numéro de TVA (BT-31, BT-48)
      */
     private ?string $vatId;
-    
+
     /**
      * @var Address Adresse postale
      */
     private Address $address;
-    
+
     /**
      * @var string|null Numéro d'identification légale (BT-30, BT-47)
      */
     private ?string $companyId;
-    
+
     /**
      * @var string|null Email de contact (BT-43, BT-58)
      */
     private ?string $email;
-    
+
     /**
      * @var ElectronicAddress|null Adresse électronique (BT-34, BT-49)
      */
     private ?ElectronicAddress $electronicAddress;
-    
+
     /**
      * @var string|null Numéro de téléphone (BT-42, BT-57)
      */
     private ?string $telephone;
-    
+
+    /**
+     * @var string|null Company Legal Form BT-33
+     */
+    private ?string $companyLegalForm = null;
+
     /**
      * Constructeur
      * 
@@ -84,7 +89,7 @@ class Party
         $this->electronicAddress = $electronicAddress;
         $this->telephone = $telephone;
     }
-    
+
     private function setName(string $name): void
     {
         if (!$this->validateNotEmpty($name)) {
@@ -92,7 +97,7 @@ class Party
         }
         $this->name = $name;
     }
-    
+
     private function setVatId(?string $vatId): void
     {
         if ($vatId !== null && !$this->validateEuropeanVat($vatId)) {
@@ -100,7 +105,7 @@ class Party
         }
         $this->vatId = $vatId;
     }
-    
+
     private function setEmail(?string $email): void
     {
         if ($email !== null && !$this->validateEmail($email)) {
@@ -108,7 +113,7 @@ class Party
         }
         $this->email = $email;
     }
-    
+
     /**
      * Définit l'adresse électronique
      * 
@@ -120,7 +125,13 @@ class Party
         $this->electronicAddress = $electronicAddress;
         return $this;
     }
-    
+
+    public function setCompanyLegalForm(?string $companyLegalForm): static
+    {
+        $this->companyLegalForm = $companyLegalForm;
+        return $this;
+    }
+
     /**
      * Vérifie si cette partie est un vendeur belge
      * 
@@ -128,11 +139,11 @@ class Party
      */
     public function isBelgianSeller(): bool
     {
-        return $this->address->getCountryCode() === 'BE' && 
-               $this->vatId !== null && 
-               $this->validateBelgianVat($this->vatId);
+        return $this->address->getCountryCode() === 'BE' &&
+            $this->vatId !== null &&
+            $this->validateBelgianVat($this->vatId);
     }
-    
+
     /**
      * Valide la partie
      * 
@@ -143,42 +154,42 @@ class Party
     public function validate(bool $requireVat = false, bool $requireElectronicAddress = false): array
     {
         $errors = [];
-        
+
         if (!$this->validateNotEmpty($this->name)) {
             $errors[] = 'Nom obligatoire';
         }
-        
+
         $addressErrors = $this->address->validate();
         if (!empty($addressErrors)) {
             $errors = array_merge($errors, array_map(fn($e) => "Adresse: $e", $addressErrors));
         }
-        
+
         if ($requireVat && empty($this->vatId)) {
             $errors[] = 'Numéro de TVA obligatoire';
         }
-        
+
         if ($this->vatId !== null && !$this->validateEuropeanVat($this->vatId)) {
             $errors[] = 'Format de numéro de TVA invalide';
         }
-        
+
         if ($this->email !== null && !$this->validateEmail($this->email)) {
             $errors[] = 'Format d\'email invalide';
         }
-        
+
         if ($requireElectronicAddress && $this->electronicAddress === null) {
             $errors[] = 'Adresse électronique obligatoire';
         }
-        
+
         if ($this->electronicAddress !== null) {
             $electronicErrors = $this->electronicAddress->validate();
             if (!empty($electronicErrors)) {
                 $errors = array_merge($errors, array_map(fn($e) => "Adresse électronique: $e", $electronicErrors));
             }
         }
-        
+
         return $errors;
     }
-    
+
     /**
      * Retourne la partie sous forme de tableau
      * 
@@ -196,13 +207,39 @@ class Party
             'electronicAddress' => $this->electronicAddress?->toArray()
         ];
     }
-    
+
     // Getters
-    public function getName(): string { return $this->name; }
-    public function getVatId(): ?string { return $this->vatId; }
-    public function getAddress(): Address { return $this->address; }
-    public function getCompanyId(): ?string { return $this->companyId; }
-    public function getEmail(): ?string { return $this->email; }
-    public function getElectronicAddress(): ?ElectronicAddress { return $this->electronicAddress; }
-    public function getTelephone(): ?string { return $this->telephone; }
+    public function getName(): string
+    {
+        return $this->name;
+    }
+    public function getVatId(): ?string
+    {
+        return $this->vatId;
+    }
+    public function getAddress(): Address
+    {
+        return $this->address;
+    }
+    public function getCompanyId(): ?string
+    {
+        return $this->companyId;
+    }
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
+    public function getElectronicAddress(): ?ElectronicAddress
+    {
+        return $this->electronicAddress;
+    }
+    public function getTelephone(): ?string
+    {
+        return $this->telephone;
+    }
+
+    public function getCompanyLegalForm(): ?string
+    {
+        return $this->companyLegalForm;
+    }
 }
