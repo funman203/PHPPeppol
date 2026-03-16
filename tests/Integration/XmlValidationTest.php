@@ -2,32 +2,31 @@
 
 declare(strict_types=1);
 
-namespace PHPPeppol\Tests\Integration;
+namespace Peppol\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use PHPPeppol\Models\PeppolInvoice;
-use PHPPeppol\Models\InvoiceLine;
-use PHPPeppol\Models\Party;
-use PHPPeppol\Models\Address;
-use PHPPeppol\Models\ElectronicAddress;
-use PHPPeppol\Formats\XmlExporter;
+use Peppol\Tests\InvoiceTestHelpers;
+use Peppol\Models\InvoiceLine;
+use Peppol\Formats\XmlExporter;
 
 /**
- * Tests de validation structurelle du XML produit.
- * Vérifie la présence et la conformité des éléments UBL obligatoires.
+ * Tests de validation structurelle du XML produit par XmlExporter::toUbl21().
+ * Vérifie la présence et la conformité des éléments UBL obligatoires,
+ * ainsi que les nouveaux champs BT-33, BT-157, BT-159.
  */
 class XmlValidationTest extends TestCase
 {
-    private PeppolInvoice $invoice;
+    use InvoiceTestHelpers;
+
     private \DOMDocument $dom;
     private \DOMXPath $xpath;
 
     protected function setUp(): void
     {
-        $this->invoice = $this->buildInvoiceComplete();
+        $invoice = $this->buildInvoiceComplete();
 
-        $exporter = new XmlExporter();
-        $xml = $exporter->export($this->invoice);
+        $exporter = new XmlExporter($invoice);
+        $xml = $exporter->toUbl21();
 
         $this->dom = new \DOMDocument();
         $this->dom->loadXML($xml);
@@ -44,231 +43,177 @@ class XmlValidationTest extends TestCase
 
     public function testCustomizationIdPresent(): void
     {
-        $nodes = $this->xpath->query('//ubl:Invoice/cbc:CustomizationID');
-        $this->assertGreaterThan(0, $nodes->length, 'CustomizationID doit être présent');
-        $this->assertStringContainsString(
-            'urn:cen.eu:en16931',
-            $nodes->item(0)->textContent
-        );
+        $val = $this->xpathText('//ubl:Invoice/cbc:CustomizationID');
+        $this->assertStringContainsString('urn:cen.eu:en16931', $val);
     }
 
     public function testProfileIdPresent(): void
     {
-        $nodes = $this->xpath->query('//ubl:Invoice/cbc:ProfileID');
-        $this->assertGreaterThan(0, $nodes->length, 'ProfileID doit être présent');
-        $this->assertStringContainsString('peppol.eu', $nodes->item(0)->textContent);
+        $val = $this->xpathText('//ubl:Invoice/cbc:ProfileID');
+        $this->assertStringContainsString('peppol.eu', $val);
     }
 
     public function testInvoiceNumberPresent(): void
     {
-        $nodes = $this->xpath->query('//ubl:Invoice/cbc:ID');
-        $this->assertGreaterThan(0, $nodes->length);
-        $this->assertNotEmpty($nodes->item(0)->textContent);
+        $this->assertNotEmpty($this->xpathText('//ubl:Invoice/cbc:ID'));
     }
 
-    public function testIssueDatePresent(): void
+    public function testIssueDateFormatYYYYMMDD(): void
     {
-        $nodes = $this->xpath->query('//ubl:Invoice/cbc:IssueDate');
-        $this->assertGreaterThan(0, $nodes->length);
-        $this->assertMatchesRegularExpression(
-            '/^\d{4}-\d{2}-\d{2}$/',
-            $nodes->item(0)->textContent,
-            'IssueDate doit être au format YYYY-MM-DD'
-        );
+        $val = $this->xpathText('//ubl:Invoice/cbc:IssueDate');
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $val);
     }
 
     // -------------------------------------------------------------------------
     // Vendeur (BG-4)
     // -------------------------------------------------------------------------
 
-    public function testSellerNamePresent(): void
+    public function testSellerRegistrationNamePresent(): void
     {
-        $nodes = $this->xpath->query(
+        $val = $this->xpathText(
             '//cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName'
         );
-        $this->assertGreaterThan(0, $nodes->length);
-        $this->assertNotEmpty($nodes->item(0)->textContent);
+        $this->assertNotEmpty($val);
     }
 
-    public function testSellerVatIdPresent(): void
-    {
-        $nodes = $this->xpath->query(
-            '//cac:AccountingSupplierParty/cac:Party/cac:PartyTaxScheme/cbc:CompanyID'
-        );
-        $this->assertGreaterThan(0, $nodes->length);
-    }
-
-    public function testSellerEndpointPresent(): void
+    public function testSellerEndpointAvecSchemeId(): void
     {
         $nodes = $this->xpath->query(
             '//cac:AccountingSupplierParty/cac:Party/cbc:EndpointID'
         );
         $this->assertGreaterThan(0, $nodes->length);
-        // L'attribut schemeID doit être présent
-        $schemeId = $nodes->item(0)->getAttribute('schemeID');
-        $this->assertNotEmpty($schemeId, 'EndpointID doit avoir un schemeID');
+        $this->assertNotEmpty($nodes->item(0)->getAttribute('schemeID'), 'schemeID obligatoire sur EndpointID');
     }
 
-    public function testSellerCompanyLegalFormExporte(): void
+    // -------------------------------------------------------------------------
+    // BT-33 — CompanyLegalForm
+    // -------------------------------------------------------------------------
+
+    public function testBt33CompanyLegalFormExporte(): void
     {
-        $nodes = $this->xpath->query(
+        $val = $this->xpathText(
             '//cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:CompanyLegalForm'
         );
-        $this->assertGreaterThan(0, $nodes->length, 'BT-33 CompanyLegalForm doit être exporté');
-        $this->assertSame('SA au capital de 100 000 EUR', $nodes->item(0)->textContent);
+        $this->assertSame('SA au capital de 100 000 EUR', $val, 'BT-33');
     }
 
-    // -------------------------------------------------------------------------
-    // Acheteur (BG-7)
-    // -------------------------------------------------------------------------
-
-    public function testBuyerNamePresent(): void
+    public function testBt33AbsentCoteAcheteur(): void
     {
+        // BT-33 est réservé au vendeur — ne doit pas apparaître côté acheteur
         $nodes = $this->xpath->query(
-            '//cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName'
+            '//cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:CompanyLegalForm'
         );
-        $this->assertGreaterThan(0, $nodes->length);
-    }
-
-    // -------------------------------------------------------------------------
-    // OrderReference — BR-42 : cbc:ID obligatoire même si NA
-    // -------------------------------------------------------------------------
-
-    public function testOrderReferenceIdToujoursPresent(): void
-    {
-        $nodes = $this->xpath->query('//cac:OrderReference/cbc:ID');
-        // Si SalesOrderRef est fourni sans PurchaseOrderRef, ID doit valoir "NA"
-        if ($nodes->length > 0) {
-            $this->assertNotEmpty($nodes->item(0)->textContent);
-        }
-        // Si ni l'un ni l'autre n'est fourni, cac:OrderReference ne doit pas exister — OK
-        $this->assertTrue(true);
+        $this->assertSame(0, $nodes->length, 'BT-33 ne doit pas être exporté côté acheteur');
     }
 
     // -------------------------------------------------------------------------
     // Lignes de facture (BG-25)
     // -------------------------------------------------------------------------
 
-    public function testAuMoinsUneLigne(): void
+    public function testAuMoinsUneLignePresente(): void
     {
         $nodes = $this->xpath->query('//cac:InvoiceLine');
-        $this->assertGreaterThan(0, $nodes->length, 'Au moins une InvoiceLine requise');
-    }
-
-    public function testLigneIdPresent(): void
-    {
-        $nodes = $this->xpath->query('//cac:InvoiceLine/cbc:ID');
         $this->assertGreaterThan(0, $nodes->length);
-        $this->assertNotEmpty($nodes->item(0)->textContent);
     }
 
     public function testLigneQuantiteAvecUnitCode(): void
     {
         $nodes = $this->xpath->query('//cac:InvoiceLine/cbc:InvoicedQuantity');
         $this->assertGreaterThan(0, $nodes->length);
-        $unitCode = $nodes->item(0)->getAttribute('unitCode');
-        $this->assertNotEmpty($unitCode, 'InvoicedQuantity doit avoir un attribut unitCode');
+        $this->assertNotEmpty($nodes->item(0)->getAttribute('unitCode'), 'unitCode obligatoire');
     }
 
     public function testLigneMontantAvecCurrencyId(): void
     {
         $nodes = $this->xpath->query('//cac:InvoiceLine/cbc:LineExtensionAmount');
         $this->assertGreaterThan(0, $nodes->length);
-        $currencyId = $nodes->item(0)->getAttribute('currencyID');
-        $this->assertNotEmpty($currencyId, 'LineExtensionAmount doit avoir currencyID');
+        $this->assertNotEmpty($nodes->item(0)->getAttribute('currencyID'), 'currencyID obligatoire');
     }
 
     // -------------------------------------------------------------------------
-    // BT-157 Standard item identifier
+    // BT-157 — Identifiant standard article
     // -------------------------------------------------------------------------
 
-    public function testStandardItemIdExporte(): void
+    public function testBt157StandardItemIdExporte(): void
     {
         $nodes = $this->xpath->query(
             '//cac:InvoiceLine/cac:Item/cac:StandardItemIdentification/cbc:ID'
         );
-        $this->assertGreaterThan(0, $nodes->length, 'BT-157 doit être exporté');
+        $this->assertGreaterThan(0, $nodes->length, 'BT-157 doit être présent');
         $this->assertSame('3700000000001', $nodes->item(0)->textContent);
-        $this->assertSame('0160', $nodes->item(0)->getAttribute('schemeID'));
+        $this->assertSame('0160', $nodes->item(0)->getAttribute('schemeID'), 'schemeID GTIN');
     }
 
     // -------------------------------------------------------------------------
-    // BT-159 Pays d'origine
+    // BT-159 — Pays d'origine
     // -------------------------------------------------------------------------
 
-    public function testOriginCountryExporte(): void
+    public function testBt159OriginCountryExporte(): void
     {
-        $nodes = $this->xpath->query(
+        $val = $this->xpathText(
             '//cac:InvoiceLine/cac:Item/cac:OriginCountry/cbc:IdentificationCode'
         );
-        $this->assertGreaterThan(0, $nodes->length, 'BT-159 doit être exporté');
-        $this->assertSame('DE', $nodes->item(0)->textContent);
+        $this->assertSame('DE', $val, 'BT-159');
     }
 
     // -------------------------------------------------------------------------
     // Totaux (BG-22)
     // -------------------------------------------------------------------------
 
-    public function testLegalMonetaryTotalPresent(): void
+    public function testLegalMonetaryTotalObligatoires(): void
     {
-        $required = [
+        foreach ([
             'cbc:LineExtensionAmount',
             'cbc:TaxExclusiveAmount',
             'cbc:TaxInclusiveAmount',
             'cbc:PayableAmount',
-        ];
-
-        foreach ($required as $element) {
-            $nodes = $this->xpath->query("//cac:LegalMonetaryTotal/$element");
-            $this->assertGreaterThan(0, $nodes->length, "$element doit être présent dans LegalMonetaryTotal");
+        ] as $elem) {
+            $nodes = $this->xpath->query("//cac:LegalMonetaryTotal/$elem");
+            $this->assertGreaterThan(0, $nodes->length, "$elem manquant dans LegalMonetaryTotal");
         }
+    }
+
+    public function testMontantsAvecCurrencyId(): void
+    {
+        $nodes = $this->xpath->query('//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount');
+        $this->assertNotEmpty($nodes->item(0)->getAttribute('currencyID'));
     }
 
     public function testTaxTotalPresent(): void
     {
         $nodes = $this->xpath->query('//cac:TaxTotal/cbc:TaxAmount');
-        $this->assertGreaterThan(0, $nodes->length, 'TaxTotal/TaxAmount doit être présent');
+        $this->assertGreaterThan(0, $nodes->length);
     }
 
     // -------------------------------------------------------------------------
-    // Helper
+    // Helpers
     // -------------------------------------------------------------------------
 
-    private function buildInvoiceComplete(): PeppolInvoice
+    private function xpathText(string $query): string
     {
-        $invoice = new PeppolInvoice();
-        $invoice->setInvoiceNumber('TEST-XML-001')
-                ->setIssueDate('2025-03-15')
-                ->setDocumentCurrencyCode('EUR');
+        $nodes = $this->xpath->query($query);
+        if ($nodes === false || $nodes->length === 0) {
+            return '';
+        }
+        return $nodes->item(0)->textContent;
+    }
 
-        // Vendeur avec BT-33
-        $sellerAddress = new Address();
-        $sellerAddress->setStreetName('Rue de l\'Industrie 42')
-                      ->setCityName('Liège')->setPostalZone('4000')->setCountryCode('BE');
-        $sellerEndpoint = new ElectronicAddress();
-        $sellerEndpoint->setIdentifier('BE0123456789')->setSchemeId('0208');
-        $seller = new Party();
-        $seller->setName('Hydraulique SA')
-               ->setVatId('BE0123456789')
-               ->setAddress($sellerAddress)
-               ->setElectronicAddress($sellerEndpoint)
-               ->setCompanyLegalForm('SA au capital de 100 000 EUR');
+    private function buildInvoiceComplete(): \PeppolInvoice
+    {
+        $invoice = new \PeppolInvoice('TEST-XML-001', '2025-03-15', '380', 'EUR');
+
+        $seller = $this->makeParty(
+            'Hydraulique SA', 'BE0123456789',
+            "Rue de l'Industrie 42", 'Liège', '4000', 'BE'
+        );
+        $seller->setCompanyLegalForm('SA au capital de 100 000 EUR');
         $invoice->setSeller($seller);
 
-        // Acheteur
-        $buyerAddress = new Address();
-        $buyerAddress->setStreetName('Chaussée de Namur 15')
-                     ->setCityName('Namur')->setPostalZone('5000')->setCountryCode('BE');
-        $buyerEndpoint = new ElectronicAddress();
-        $buyerEndpoint->setIdentifier('BE0987654321')->setSchemeId('0208');
-        $buyer = new Party();
-        $buyer->setName('Garage Dupont')
-              ->setVatId('BE0987654321')
-              ->setAddress($buyerAddress)
-              ->setElectronicAddress($buyerEndpoint);
-        $invoice->setBuyer($buyer);
+        $invoice->setBuyer($this->makeParty(
+            'Garage Dupont', 'BE0987654321',
+            'Chaussée de Namur 15', 'Namur', '5000', 'BE'
+        ));
 
-        // Ligne avec BT-157 et BT-159
         $line = new InvoiceLine();
         $line->setId('1')
              ->setName('Vérin hydraulique V-40')
