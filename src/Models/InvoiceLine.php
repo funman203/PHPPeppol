@@ -129,7 +129,13 @@ class InvoiceLine {
      * @var float Somme des majorations de ligne (BT-141)
      */
     private float $sumOfLineCharges = 0.0;
+    /*
+     * @var ?string Code d'identification standard (BT-157)
+     */
     private ?string $standardItemId = null;
+    /*
+     * @var ?string type d'identification standard ISO 6523 ICD list  ex 0160 = code ean
+     */
     private ?string $standardItemSchemeId = null;
     private ?string $originCountryCode = null;
     /**
