@@ -13,16 +13,14 @@ use Peppol\Formats\XmlExporter;
 
 /**
  * Tests d'intégration : round-trip PHP → XML → PHP.
- *
  * Flux : PeppolInvoice → XmlExporter::toUbl21() → PeppolInvoice::fromXml()
- * Vérifie que chaque champ exporté est identique après réimport.
  */
 class RoundTripTest extends TestCase
 {
     use InvoiceTestHelpers;
 
     // =========================================================================
-    // Facture minimale
+    // Champs racine
     // =========================================================================
 
     public function testRoundTripChampsRacine(): void
@@ -77,30 +75,32 @@ class RoundTripTest extends TestCase
     }
 
     // =========================================================================
-    // Lignes de facture — champs de base
+    // Lignes — champs de base
     // =========================================================================
 
     public function testRoundTripLignesBase(): void
     {
         $original = $this->buildInvoiceBase();
-        $line = new InvoiceLine();
-        $line->setId('1')
-             ->setName('Pompe hydraulique HPX-200')
-             ->setDescription('Pompe à engrenages haute pression 200 bar')
-             ->setQuantity(3.0)
-             ->setUnitCode('C62')
-             ->setUnitPrice(450.00)
-             ->setVatCategory('S')
-             ->setVatRate(21.0);
+        $line = new InvoiceLine(
+            '1', 'Pompe hydraulique HPX-200', 3.0, 'C62', 450.00, 'S', 21.0,
+            'Pompe à engrenages haute pression 200 bar'
+        );
         $original->addInvoiceLine($line);
+        $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         $lines = $imported->getInvoiceLines();
 
-        $this->assertCount(1, $lines);
-        $il = $lines[0];
+        // La facture de base contient déjà 1 ligne — la nouvelle est en position 1
+        $il = null;
+        foreach ($lines as $l) {
+            if ($l->getId() === '1' && $l->getName() === 'Pompe hydraulique HPX-200') {
+                $il = $l;
+                break;
+            }
+        }
+        $this->assertNotNull($il, 'Ligne "Pompe hydraulique HPX-200" non trouvée');
         $this->assertSame('1', $il->getId(), 'BT-126');
-        $this->assertSame('Pompe hydraulique HPX-200', $il->getName(), 'BT-153');
         $this->assertEqualsWithDelta(3.0, $il->getQuantity(), 0.001, 'BT-129');
         $this->assertSame('C62', $il->getUnitCode(), 'BT-130');
         $this->assertEqualsWithDelta(450.00, $il->getUnitPrice(), 0.01, 'BT-146');
@@ -110,25 +110,35 @@ class RoundTripTest extends TestCase
 
     public function testRoundTripLigneNoteEtReference(): void
     {
-        $original = $this->buildInvoiceBase();
-        $line = $this->makeLine('1', 1.0, 200.00);
-        $line->setLineNote('Ticket #4521 — intervention du 15/01');
+        $original = new \PeppolInvoice('INV-NOTE-001', '2025-03-15');
+        $original->setDueDate('2025-04-15');
+        $original->setSeller($this->makeParty('Vendeur SA', 'BE0123456789'));
+        $original->setBuyer($this->makeParty('Acheteur SPRL', 'BE0987654321'));
+
+        $line = new InvoiceLine('1', 'Service maintenance', 1.0, 'C62', 200.00, 'S', 21.0);
+        $line->setLineNote('Intervention du 15/01/2025 - Ticket #4521');
         $line->setOrderLineReference('PO-LINE-3');
         $original->addInvoiceLine($line);
+        $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         $il = $imported->getInvoiceLines()[0];
 
-        $this->assertSame('Ticket #4521 — intervention du 15/01', $il->getLineNote(), 'BT-127');
+        $this->assertSame('Intervention du 15/01/2025 - Ticket #4521', $il->getLineNote(), 'BT-127');
         $this->assertSame('PO-LINE-3', $il->getOrderLineReference(), 'BT-132');
     }
 
     public function testRoundTripLignePeriode(): void
     {
-        $original = $this->buildInvoiceBase();
-        $line = $this->makeLine('1', 1.0, 99.00);
+        $original = new \PeppolInvoice('INV-PERIOD-001', '2025-03-15');
+        $original->setDueDate('2025-04-15');
+        $original->setSeller($this->makeParty('Vendeur SA', 'BE0123456789'));
+        $original->setBuyer($this->makeParty('Acheteur SPRL', 'BE0987654321'));
+
+        $line = new InvoiceLine('1', 'Abonnement mensuel', 1.0, 'C62', 99.00, 'S', 21.0);
         $line->setLinePeriod('2025-03-01', '2025-03-31');
         $original->addInvoiceLine($line);
+        $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         $il = $imported->getInvoiceLines()[0];
@@ -138,19 +148,24 @@ class RoundTripTest extends TestCase
     }
 
     // =========================================================================
-    // BT-155/156/157/158/159 — Identifiants et classification article
+    // BT-155/156/157/158/159
     // =========================================================================
 
     public function testRoundTripIdentifiantsArticle(): void
     {
-        $original = $this->buildInvoiceBase();
-        $line = $this->makeLine('1', 2.0, 320.00);
+        $original = new \PeppolInvoice('INV-IDS-001', '2025-03-15');
+        $original->setDueDate('2025-04-15');
+        $original->setSeller($this->makeParty('Vendeur SA', 'BE0123456789'));
+        $original->setBuyer($this->makeParty('Acheteur SPRL', 'BE0987654321'));
+
+        $line = new InvoiceLine('1', 'Vérin hydraulique V-40', 2.0, 'C62', 320.00, 'S', 21.0);
         $line->setSellerItemId('VERIN-V40')
              ->setBuyerItemId('ART-BUYER-999')
              ->setStandardItemId('3700000040001', '0160')
              ->setItemClassificationCode('23152000', 'STI')
              ->setOriginCountryCode('DE');
         $original->addInvoiceLine($line);
+        $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         $il = $imported->getInvoiceLines()[0];
@@ -188,9 +203,15 @@ class RoundTripTest extends TestCase
     public function testRoundTripRemiseDocument(): void
     {
         $original = $this->buildInvoiceBase();
-        $original->addAllowance(
-            AllowanceCharge::createAllowance(50.00, 'S', 21.0, 'Remise fidélité', '95')
+        $original->addAllowanceCharge(
+            AllowanceCharge::createAllowance(
+                amount: 50.00,
+                vatCategory: 'S',
+                vatRate: 21.0,
+                reason: 'Remise fidélité'
+            )
         );
+        $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         $allowances = array_values(array_filter(
@@ -205,10 +226,17 @@ class RoundTripTest extends TestCase
 
     public function testRoundTripRemiseLigne(): void
     {
-        $original = $this->buildInvoiceBase();
-        $line = $this->makeLine('1', 10.0, 100.00);
-        $line->addAllowanceCharge(AllowanceCharge::createAllowance(50.00, 'S', 21.0, 'Remise volume'));
+        $original = new \PeppolInvoice('INV-DISC-001', '2025-03-15');
+        $original->setDueDate('2025-04-15');
+        $original->setSeller($this->makeParty('Vendeur SA', 'BE0123456789'));
+        $original->setBuyer($this->makeParty('Acheteur SPRL', 'BE0987654321'));
+
+        $line = new InvoiceLine('1', 'Article avec remise', 10.0, 'C62', 100.00, 'S', 21.0);
+        $line->addAllowanceCharge(
+            AllowanceCharge::createAllowance(amount: 50.00, vatCategory: 'S', vatRate: 21.0, reason: 'Remise volume')
+        );
         $original->addInvoiceLine($line);
+        $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         // 10×100 - 50 = 950
@@ -216,19 +244,24 @@ class RoundTripTest extends TestCase
     }
 
     // =========================================================================
-    // Totaux après round-trip
+    // Totaux
     // =========================================================================
 
     public function testRoundTripTotauxCoherents(): void
     {
-        $original = $this->buildInvoiceBase();
-        $original->addInvoiceLine($this->makeLine('1', 5.0, 100.00)); // 500
-        $original->addInvoiceLine($this->makeLine('2', 2.0, 250.00)); // 500
+        $original = new \PeppolInvoice('INV-TOT-001', '2025-03-15');
+        $original->setDueDate('2025-04-15');
+        $original->setSeller($this->makeParty('Vendeur SA', 'BE0123456789'));
+        $original->setBuyer($this->makeParty('Acheteur SPRL', 'BE0987654321'));
+
+        $original->addInvoiceLine(new InvoiceLine('1', 'Art 1', 5.0, 'C62', 100.00, 'S', 21.0));
+        $original->addInvoiceLine(new InvoiceLine('2', 'Art 2', 2.0, 'C62', 250.00, 'S', 21.0));
         $original->calculateTotals();
 
         $imported = $this->roundTrip($original);
         $imported->calculateTotals();
 
+        // 5×100 + 2×250 = 500 + 500 = 1000 HT
         $this->assertEqualsWithDelta(1000.00, $imported->getTaxExclusiveAmount(), 0.01, 'HT');
         $this->assertEqualsWithDelta(210.00, $imported->getTotalVatAmount(), 0.01, 'TVA');
         $this->assertEqualsWithDelta(1210.00, $imported->getTaxInclusiveAmount(), 0.01, 'TTC');
@@ -241,16 +274,13 @@ class RoundTripTest extends TestCase
     public function testRoundTripPaiementVirement(): void
     {
         $original = $this->buildInvoiceBase();
-        $payment = new PaymentInfo();
-        $payment->setPaymentMeansCode('30')
-                ->setIban('BE71096123456769')
-                ->setBic('GKCCBEBB')
-                ->setPaymentReference('INV-2025-001');
+        $payment = new PaymentInfo('30', 'BE71096123456769', 'GKCCBEBB', 'INV-2025-001');
         $original->setPaymentInfo($payment);
 
         $imported = $this->roundTrip($original);
         $pi = $imported->getPaymentInfo();
 
+        $this->assertNotNull($pi);
         $this->assertSame('BE71096123456769', $pi->getIban());
         $this->assertSame('GKCCBEBB', $pi->getBic());
     }
@@ -263,7 +293,6 @@ class RoundTripTest extends TestCase
     {
         $invoice = new \PeppolInvoice('INV-TEST-001', '2025-03-15', '380', 'EUR');
         $invoice->setDueDate('2025-04-15');
-
         $invoice->setSeller($this->makeParty(
             'Hydraulique Industrielle SA', 'BE0123456789',
             "Rue de l'Industrie 42", 'Liège', '4000', 'BE'
@@ -272,31 +301,22 @@ class RoundTripTest extends TestCase
             'Garage Dupont SPRL', 'BE0987654321',
             'Chaussée de Namur 15', 'Namur', '5000', 'BE'
         ));
-
-        // Une ligne par défaut pour que la facture passe la validation
-        $invoice->addInvoiceLine($this->makeLine('1', 1.0, 100.00));
+        $invoice->addInvoiceLine(new InvoiceLine('1', 'Prestation standard', 1.0, 'C62', 100.00, 'S', 21.0));
         $invoice->calculateTotals();
-
         return $invoice;
     }
 
-    /**
-     * Exporte la facture en XML via XmlExporter::toUbl21(),
-     * puis la réimporte via PeppolInvoice::fromXml().
-     */
     private function roundTrip(\PeppolInvoice $invoice): \PeppolInvoice
     {
         $exporter = new XmlExporter($invoice);
         $xml = $exporter->toUbl21();
 
-        $this->assertNotEmpty($xml, 'XML exporté ne doit pas être vide');
-
+        $this->assertNotEmpty($xml);
         $dom = new \DOMDocument();
-        $this->assertTrue($dom->loadXML($xml), 'Le XML exporté doit être bien formé');
+        $this->assertTrue($dom->loadXML($xml), 'XML mal formé');
 
         $imported = \PeppolInvoice::fromXml($xml, strict: false);
         $this->assertInstanceOf(\PeppolInvoice::class, $imported);
-
         return $imported;
     }
 }

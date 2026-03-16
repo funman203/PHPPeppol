@@ -7,12 +7,13 @@ namespace Peppol\Tests\Integration;
 use PHPUnit\Framework\TestCase;
 use Peppol\Tests\InvoiceTestHelpers;
 use Peppol\Models\InvoiceLine;
+use Peppol\Models\Party;
+use Peppol\Models\Address;
+use Peppol\Models\ElectronicAddress;
 use Peppol\Formats\XmlExporter;
 
 /**
  * Tests de validation structurelle du XML produit par XmlExporter::toUbl21().
- * Vérifie la présence et la conformité des éléments UBL obligatoires,
- * ainsi que les nouveaux champs BT-33, BT-157, BT-159.
  */
 class XmlValidationTest extends TestCase
 {
@@ -24,7 +25,6 @@ class XmlValidationTest extends TestCase
     protected function setUp(): void
     {
         $invoice = $this->buildInvoiceComplete();
-
         $exporter = new XmlExporter($invoice);
         $xml = $exporter->toUbl21();
 
@@ -78,11 +78,9 @@ class XmlValidationTest extends TestCase
 
     public function testSellerEndpointAvecSchemeId(): void
     {
-        $nodes = $this->xpath->query(
-            '//cac:AccountingSupplierParty/cac:Party/cbc:EndpointID'
-        );
+        $nodes = $this->xpath->query('//cac:AccountingSupplierParty/cac:Party/cbc:EndpointID');
         $this->assertGreaterThan(0, $nodes->length);
-        $this->assertNotEmpty($nodes->item(0)->getAttribute('schemeID'), 'schemeID obligatoire sur EndpointID');
+        $this->assertNotEmpty($nodes->item(0)->getAttribute('schemeID'), 'schemeID obligatoire');
     }
 
     // -------------------------------------------------------------------------
@@ -99,15 +97,14 @@ class XmlValidationTest extends TestCase
 
     public function testBt33AbsentCoteAcheteur(): void
     {
-        // BT-33 est réservé au vendeur — ne doit pas apparaître côté acheteur
         $nodes = $this->xpath->query(
             '//cac:AccountingCustomerParty/cac:Party/cac:PartyLegalEntity/cbc:CompanyLegalForm'
         );
-        $this->assertSame(0, $nodes->length, 'BT-33 ne doit pas être exporté côté acheteur');
+        $this->assertSame(0, $nodes->length, 'BT-33 ne doit pas apparaître côté acheteur');
     }
 
     // -------------------------------------------------------------------------
-    // Lignes de facture (BG-25)
+    // Lignes (BG-25)
     // -------------------------------------------------------------------------
 
     public function testAuMoinsUneLignePresente(): void
@@ -141,7 +138,7 @@ class XmlValidationTest extends TestCase
         );
         $this->assertGreaterThan(0, $nodes->length, 'BT-157 doit être présent');
         $this->assertSame('3700000000001', $nodes->item(0)->textContent);
-        $this->assertSame('0160', $nodes->item(0)->getAttribute('schemeID'), 'schemeID GTIN');
+        $this->assertSame('0160', $nodes->item(0)->getAttribute('schemeID'));
     }
 
     // -------------------------------------------------------------------------
@@ -169,7 +166,7 @@ class XmlValidationTest extends TestCase
             'cbc:PayableAmount',
         ] as $elem) {
             $nodes = $this->xpath->query("//cac:LegalMonetaryTotal/$elem");
-            $this->assertGreaterThan(0, $nodes->length, "$elem manquant dans LegalMonetaryTotal");
+            $this->assertGreaterThan(0, $nodes->length, "$elem manquant");
         }
     }
 
@@ -192,7 +189,7 @@ class XmlValidationTest extends TestCase
     private function xpathText(string $query): string
     {
         $nodes = $this->xpath->query($query);
-        if ($nodes === false || $nodes->length === 0) {
+        if (!$nodes || $nodes->length === 0) {
             return '';
         }
         return $nodes->item(0)->textContent;
@@ -201,28 +198,28 @@ class XmlValidationTest extends TestCase
     private function buildInvoiceComplete(): \PeppolInvoice
     {
         $invoice = new \PeppolInvoice('TEST-XML-001', '2025-03-15', '380', 'EUR');
+        $invoice->setDueDate('2025-04-15');
 
-        $seller = $this->makeParty(
-            'Hydraulique SA', 'BE0123456789',
-            "Rue de l'Industrie 42", 'Liège', '4000', 'BE'
+        $seller = new Party(
+            'Hydraulique SA',
+            new Address("Rue de l'Industrie 42", 'Liège', '4000', 'BE'),
+            'BE0123456789',
+            null, null,
+            new ElectronicAddress('0208', 'BE0123456789')
         );
         $seller->setCompanyLegalForm('SA au capital de 100 000 EUR');
         $invoice->setSeller($seller);
 
-        $invoice->setBuyer($this->makeParty(
-            'Garage Dupont', 'BE0987654321',
-            'Chaussée de Namur 15', 'Namur', '5000', 'BE'
+        $invoice->setBuyer(new Party(
+            'Garage Dupont',
+            new Address('Chaussée de Namur 15', 'Namur', '5000', 'BE'),
+            'BE0987654321',
+            null, null,
+            new ElectronicAddress('0208', 'BE0987654321')
         ));
 
-        $line = new InvoiceLine();
-        $line->setId('1')
-             ->setName('Vérin hydraulique V-40')
-             ->setQuantity(2.0)
-             ->setUnitCode('C62')
-             ->setUnitPrice(350.00)
-             ->setVatCategory('S')
-             ->setVatRate(21.0)
-             ->setStandardItemId('3700000000001', '0160')
+        $line = new InvoiceLine('1', 'Vérin hydraulique V-40', 2.0, 'C62', 350.00, 'S', 21.0);
+        $line->setStandardItemId('3700000000001', '0160')
              ->setOriginCountryCode('DE');
         $invoice->addInvoiceLine($line);
         $invoice->calculateTotals();
