@@ -26,23 +26,9 @@ trait InvoiceTestHelpers
         string $postal = '1000',
         string $country = 'BE'
     ): Party {
-        $address = new Address();
-        $address->setStreetName($street)
-                ->setCityName($city)
-                ->setPostalZone($postal)
-                ->setCountryCode($country);
-
-        $endpoint = new ElectronicAddress();
-        $endpoint->setIdentifier($vatId)
-                 ->setSchemeId('0208');
-
-        $party = new Party();
-        $party->setName($name)
-              ->setVatId($vatId)
-              ->setAddress($address)
-              ->setElectronicAddress($endpoint);
-
-        return $party;
+        $address = new Address($street, $city, $postal, $country);
+        $endpoint = new ElectronicAddress('0208', $vatId);
+        return new Party($name, $address, $vatId, null, null, $endpoint);
     }
 
     /**
@@ -56,14 +42,14 @@ trait InvoiceTestHelpers
         float $vatRate = 21.0,
         string $name = ''
     ): InvoiceLine {
-        $line = new InvoiceLine();
-        $line->setId($id)
-             ->setName($name ?: "Article $id")
-             ->setQuantity($qty)
-             ->setUnitCode('C62')
-             ->setUnitPrice($price)
-             ->setVatCategory($vatCat)
-             ->setVatRate($vatRate);
-        return $line;
+        return new InvoiceLine(
+            $id,
+            $name ?: "Article $id",
+            $qty,
+            'C62',
+            $price,
+            $vatCat,
+            $vatRate
+        );
     }
 }
