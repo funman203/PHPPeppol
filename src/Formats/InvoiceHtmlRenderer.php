@@ -643,7 +643,7 @@ class InvoiceHtmlRenderer
     private function css(bool $standalone = false): string
     {
         $bodyRules = $standalone
-            ? body.pep-body{font-family:"DM Sans",sans-serif;font-weight:300;font-size:13.5px;line-height:1.6;background:#faf9f7;color:#1a1814;padding:40px 20px;max-width:1200px;margin:0 auto;}'
+            ? 'body.pep-body{font-family:"DM Sans",sans-serif;font-weight:300;font-size:13.5px;line-height:1.6;background:#faf9f7;color:#1a1814;padding:40px 20px;max-width:1200px;margin:0 auto;}'
             : '';
 
         return $bodyRules . '
