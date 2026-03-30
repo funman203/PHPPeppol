@@ -743,11 +743,10 @@ class InvoiceHtmlRenderer
   padding:14px 16px !important;font-size:15px;font-weight:500;margin-top:8px;border-bottom:none !important;}
 .pep-row-payable .pep-amount-label,.pep-row-payable .pep-amount-value{color:var(--pep-white);}
 /* Paiement */
-
 .pep-payment{margin-top:40px;padding-top:24px;border-top:1px solid var(--pep-rule);
-  display:grid;grid-template-columns:1fr auto;gap:40px;align-items:start;}
-.pep-payment-with-qr{grid-template-columns:1fr auto;}
-.pep-payment-left{display:flex;flex-direction:column;}
+  display:flex;flex-direction:row;gap:40px;align-items:flex-start;}
+.pep-payment-left{flex:0 0 auto;max-width:420px;}
+.pep-payment-with-qr .pep-payment-left{max-width:360px;}
 .pep-pay-block{background:var(--pep-bg-alt);padding:20px 24px;}
 .pep-pay-label{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
   color:var(--pep-muted);margin-bottom:4px;margin-top:12px;}
