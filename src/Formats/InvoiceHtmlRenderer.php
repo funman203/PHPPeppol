@@ -441,7 +441,8 @@ class InvoiceHtmlRenderer
 
         // ── Paiement ─────────────────────────────────────────────
         if ($payment?->getIban() || $invoice->getPaymentTerms()) {
-            $html .= '<div class="pep-payment">';
+            $qrClass = $qrUrl !== null ? ' pep-payment-with-qr' : '';
+            $html .= '<div class="pep-payment' . $qrClass . '">';
             if ($payment?->getIban()) {
                 $html .= '<div>';
                 $html .= '<div class="pep-section-title">' . $l('banking') . '</div>';
@@ -463,15 +464,15 @@ class InvoiceHtmlRenderer
                     . nl2br($this->e($invoice->getPaymentTerms()))
                     . '</div></div></div>';
             }
-            $html .= '</div>'; // .pep-payment
             if ($qrUrl !== null) {
-                $html .= '<div style="margin-top:16px;text-align:center">';
+                $html .= '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">';
                 $html .= '<img src="' . $this->e($qrUrl) . '" alt="QR code paiement" '
-                    . 'style="width:120px;height:120px;display:block;margin:0 auto 6px">';
-                $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;text-transform:uppercase">'
-                    . 'Scannez pour payer</div>';
+                    . 'style="width:110px;height:110px;display:block">';
+                $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;'
+                    . 'text-transform:uppercase;margin-top:8px;text-align:center">Scannez pour payer</div>';
                 $html .= '</div>';
             }
+            $html .= '</div>'; // .pep-payment
         }
 
         // ── Pièces jointes ───────────────────────────────────────
@@ -739,8 +740,10 @@ class InvoiceHtmlRenderer
   padding:14px 16px !important;font-size:15px;font-weight:500;margin-top:8px;border-bottom:none !important;}
 .pep-row-payable .pep-amount-label,.pep-row-payable .pep-amount-value{color:var(--pep-white);}
 /* Paiement */
+
 .pep-payment{margin-top:40px;padding-top:24px;border-top:1px solid var(--pep-rule);
   display:grid;grid-template-columns:1fr 1fr;gap:32px;}
+.pep-payment-with-qr{grid-template-columns:1fr 1fr 140px;}
 .pep-pay-block{background:var(--pep-bg-alt);padding:20px 24px;}
 .pep-pay-label{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
   color:var(--pep-muted);margin-bottom:4px;margin-top:12px;}
