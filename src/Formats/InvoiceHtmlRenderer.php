@@ -36,110 +36,118 @@ class InvoiceHtmlRenderer
     private string $locale = 'fr';
     private bool $showAttachments = true;
 
+    /** @var callable|null */
+    private $qrCodeUrlCallback = null;
+
+    public function setQrCodeUrlCallback(callable $callback): static
+    {
+        $this->qrCodeUrlCallback = $callback;
+        return $this;
+    }
     private static array $labels = [
         'fr' => [
-            'invoice'        => 'FACTURE',
-            'credit_note'    => 'AVOIR',
-            'prepayment'     => "FACTURE D'ACOMPTE",
-            'corrective'     => 'FACTURE RECTIFICATIVE',
-            'debit'          => 'FACTURE DE DÉBIT',
-            'self_billed'    => 'FACTURE AUTO-LIQUIDÉE',
-            'emitter'        => 'Émetteur · Vendeur',
-            'recipient'      => 'Destinataire · Acheteur',
-            'issue_date'     => "Date d'émission",
-            'due_date'       => "Date d'échéance",
-            'delivery_date'  => 'Date de livraison',
-            'currency'       => 'Devise',
-            'note'           => 'Note',
-            'preceding'      => 'Référence facture précédente',
-            'references'     => 'Références',
-            'buyer_ref'      => 'Réf. acheteur',
-            'po_ref'         => 'Commande acheteur',
-            'so_ref'         => 'Commande vendeur',
-            'contract'       => 'Contrat',
-            'project'        => 'Projet',
-            'despatch'       => "Avis d'expéd.",
-            'receipt'        => 'Avis réception',
-            'accounting'     => 'Réf. compta',
-            'period_start'   => 'Période — début',
-            'period_end'     => 'Période — fin',
-            'lines'          => 'Détail des prestations',
-            'col_num'        => '#',
-            'col_desc'       => 'Désignation',
-            'col_qty'        => 'Qté',
-            'col_unit'       => 'U.',
-            'col_up'         => 'P.U. HT',
-            'col_vat'        => 'TVA',
-            'col_total'      => 'Total HT',
-            'doc_acs'        => 'Remises & majorations document',
-            'col_type'       => 'Type',
-            'col_reason'     => 'Motif',
-            'col_code'       => 'Code',
-            'col_vatcat'     => 'Cat. TVA',
-            'col_amount'     => 'Montant',
-            'allowance'      => '▼ Remise',
-            'charge'         => '▲ Majoration',
-            'vat_breakdown'  => 'Ventilation TVA',
-            'col_category'   => 'Catégorie',
-            'col_rate'       => 'Taux',
-            'col_base'       => 'Base HT',
-            'col_taxamt'     => 'TVA',
+            'invoice' => 'FACTURE',
+            'credit_note' => 'AVOIR',
+            'prepayment' => "FACTURE D'ACOMPTE",
+            'corrective' => 'FACTURE RECTIFICATIVE',
+            'debit' => 'FACTURE DE DÉBIT',
+            'self_billed' => 'FACTURE AUTO-LIQUIDÉE',
+            'emitter' => 'Émetteur · Vendeur',
+            'recipient' => 'Destinataire · Acheteur',
+            'issue_date' => "Date d'émission",
+            'due_date' => "Date d'échéance",
+            'delivery_date' => 'Date de livraison',
+            'currency' => 'Devise',
+            'note' => 'Note',
+            'preceding' => 'Référence facture précédente',
+            'references' => 'Références',
+            'buyer_ref' => 'Réf. acheteur',
+            'po_ref' => 'Commande acheteur',
+            'so_ref' => 'Commande vendeur',
+            'contract' => 'Contrat',
+            'project' => 'Projet',
+            'despatch' => "Avis d'expéd.",
+            'receipt' => 'Avis réception',
+            'accounting' => 'Réf. compta',
+            'period_start' => 'Période — début',
+            'period_end' => 'Période — fin',
+            'lines' => 'Détail des prestations',
+            'col_num' => '#',
+            'col_desc' => 'Désignation',
+            'col_qty' => 'Qté',
+            'col_unit' => 'U.',
+            'col_up' => 'P.U. HT',
+            'col_vat' => 'TVA',
+            'col_total' => 'Total HT',
+            'doc_acs' => 'Remises & majorations document',
+            'col_type' => 'Type',
+            'col_reason' => 'Motif',
+            'col_code' => 'Code',
+            'col_vatcat' => 'Cat. TVA',
+            'col_amount' => 'Montant',
+            'allowance' => '▼ Remise',
+            'charge' => '▲ Majoration',
+            'vat_breakdown' => 'Ventilation TVA',
+            'col_category' => 'Catégorie',
+            'col_rate' => 'Taux',
+            'col_base' => 'Base HT',
+            'col_taxamt' => 'TVA',
             'subtotal_lines' => 'Total brut lignes',
-            'total_allow'    => 'Total remises',
-            'total_charges'  => 'Total majorations',
-            'total_ht'       => 'Total HT',
-            'total_vat'      => 'Total TVA',
-            'total_ttc'      => 'Total TTC',
-            'prepaid'        => 'Acompte versé',
-            'payable'        => 'NET À PAYER',
-            'banking'        => 'Coordonnées bancaires',
-            'iban'           => 'IBAN',
-            'bic'            => 'BIC / SWIFT',
-            'pay_ref'        => 'Référence de paiement',
-            'pay_code'       => 'Mode de paiement',
-            'pay_terms'      => 'Conditions de paiement',
-            'attachments'    => 'Documents joints',
-            'generated'      => 'Document généré le',
-            'at'             => 'à',
-            'seller_ref'     => 'Réf. vendeur',
+            'total_allow' => 'Total remises',
+            'total_charges' => 'Total majorations',
+            'total_ht' => 'Total HT',
+            'total_vat' => 'Total TVA',
+            'total_ttc' => 'Total TTC',
+            'prepaid' => 'Acompte versé',
+            'payable' => 'NET À PAYER',
+            'banking' => 'Coordonnées bancaires',
+            'iban' => 'IBAN',
+            'bic' => 'BIC / SWIFT',
+            'pay_ref' => 'Référence de paiement',
+            'pay_code' => 'Mode de paiement',
+            'pay_terms' => 'Conditions de paiement',
+            'attachments' => 'Documents joints',
+            'generated' => 'Document généré le',
+            'at' => 'à',
+            'seller_ref' => 'Réf. vendeur',
             'buyer_item_ref' => 'Réf. acheteur',
-            'gtin'           => 'EAN/GTIN',
-            'origin'         => 'Origine',
-            'order_line'     => 'Ligne cmd',
-            'period'         => 'Période',
-            'vat_label'      => 'TVA',
-            'company_id'     => 'BCE',
-            'peppol'         => 'Peppol',
+            'gtin' => 'EAN/GTIN',
+            'origin' => 'Origine',
+            'order_line' => 'Ligne cmd',
+            'period' => 'Période',
+            'vat_label' => 'TVA',
+            'company_id' => 'BCE',
+            'peppol' => 'Peppol',
         ],
         'nl' => [
-            'invoice'        => 'FACTUUR',
-            'credit_note'    => 'CREDITNOTA',
-            'emitter'        => 'Afzender · Verkoper',
-            'recipient'      => 'Ontvanger · Koper',
-            'issue_date'     => 'Factuurdatum',
-            'due_date'       => 'Vervaldatum',
-            'total_ht'       => 'Totaal excl. BTW',
-            'total_vat'      => 'Totaal BTW',
-            'total_ttc'      => 'Totaal incl. BTW',
-            'payable'        => 'TE BETALEN',
-            'lines'          => 'Factuurlijnen',
-            'banking'        => 'Bankgegevens',
-            'vat_breakdown'  => 'BTW-overzicht',
+            'invoice' => 'FACTUUR',
+            'credit_note' => 'CREDITNOTA',
+            'emitter' => 'Afzender · Verkoper',
+            'recipient' => 'Ontvanger · Koper',
+            'issue_date' => 'Factuurdatum',
+            'due_date' => 'Vervaldatum',
+            'total_ht' => 'Totaal excl. BTW',
+            'total_vat' => 'Totaal BTW',
+            'total_ttc' => 'Totaal incl. BTW',
+            'payable' => 'TE BETALEN',
+            'lines' => 'Factuurlijnen',
+            'banking' => 'Bankgegevens',
+            'vat_breakdown' => 'BTW-overzicht',
         ],
         'en' => [
-            'invoice'        => 'INVOICE',
-            'credit_note'    => 'CREDIT NOTE',
-            'emitter'        => 'Sender · Seller',
-            'recipient'      => 'Recipient · Buyer',
-            'issue_date'     => 'Issue date',
-            'due_date'       => 'Due date',
-            'total_ht'       => 'Net amount',
-            'total_vat'      => 'VAT total',
-            'total_ttc'      => 'Gross amount',
-            'payable'        => 'AMOUNT DUE',
-            'lines'          => 'Line items',
-            'banking'        => 'Bank details',
-            'vat_breakdown'  => 'VAT breakdown',
+            'invoice' => 'INVOICE',
+            'credit_note' => 'CREDIT NOTE',
+            'emitter' => 'Sender · Seller',
+            'recipient' => 'Recipient · Buyer',
+            'issue_date' => 'Issue date',
+            'due_date' => 'Due date',
+            'total_ht' => 'Net amount',
+            'total_vat' => 'VAT total',
+            'total_ttc' => 'Gross amount',
+            'payable' => 'AMOUNT DUE',
+            'lines' => 'Line items',
+            'banking' => 'Bank details',
+            'vat_breakdown' => 'VAT breakdown',
         ],
     ];
 
@@ -196,13 +204,16 @@ class InvoiceHtmlRenderer
     {
         $l = fn(string $key): string => $this->label($key);
 
-        $seller  = $invoice->getSeller();
-        $buyer   = $invoice->getBuyer();
-        $lines   = $invoice->getInvoiceLines();
+        $seller = $invoice->getSeller();
+        $buyer = $invoice->getBuyer();
+        $lines = $invoice->getInvoiceLines();
         $payment = $invoice->getPaymentInfo();
-        $acs     = $invoice->getAllowanceCharges();
-        $vats    = $invoice->getVatBreakdown();
-        $cur     = $invoice->getDocumentCurrencyCode();
+        $acs = $invoice->getAllowanceCharges();
+        $vats = $invoice->getVatBreakdown();
+        $qrUrl = $this->qrCodeUrlCallback !== null
+            ? ($this->qrCodeUrlCallback)($invoice)
+            : null;
+        $cur = $invoice->getDocumentCurrencyCode();
 
         $typeLabels = [
             '380' => $l('invoice'),
@@ -214,9 +225,9 @@ class InvoiceHtmlRenderer
         ];
         $typeLabel = $typeLabels[$invoice->getInvoiceTypeCode()] ?? $l('invoice');
 
-        $badgeClass = match($invoice->getInvoiceTypeCode()) {
-            '380'   => 'badge-380',
-            '381'   => 'badge-381',
+        $badgeClass = match ($invoice->getInvoiceTypeCode()) {
+            '380' => 'badge-380',
+            '381' => 'badge-381',
             default => 'badge-other',
         };
 
@@ -263,18 +274,18 @@ class InvoiceHtmlRenderer
         // ── Parties ──────────────────────────────────────────────
         $html .= '<div class="pep-parties">';
         $html .= $this->renderParty($seller, $l('emitter'), 'seller');
-        $html .= $this->renderParty($buyer,  $l('recipient'), 'buyer');
+        $html .= $this->renderParty($buyer, $l('recipient'), 'buyer');
         $html .= '</div>';
 
         // ── Références ───────────────────────────────────────────
         $refs = array_filter([
-            $l('buyer_ref')  => $invoice->getBuyerReference(),
-            $l('po_ref')     => $invoice->getPurchaseOrderReference(),
-            $l('so_ref')     => $invoice->getSalesOrderReference(),
-            $l('contract')   => $invoice->getContractReference(),
-            $l('project')    => $invoice->getProjectReference(),
-            $l('despatch')   => $invoice->getDespatchAdviceReference(),
-            $l('receipt')    => $invoice->getReceivingAdviceReference(),
+            $l('buyer_ref') => $invoice->getBuyerReference(),
+            $l('po_ref') => $invoice->getPurchaseOrderReference(),
+            $l('so_ref') => $invoice->getSalesOrderReference(),
+            $l('contract') => $invoice->getContractReference(),
+            $l('project') => $invoice->getProjectReference(),
+            $l('despatch') => $invoice->getDespatchAdviceReference(),
+            $l('receipt') => $invoice->getReceivingAdviceReference(),
             $l('accounting') => $invoice->getBuyerAccountingReference(),
         ]);
         if (!empty($refs)) {
@@ -290,7 +301,7 @@ class InvoiceHtmlRenderer
         if ($invoice->getInvoicePeriodStartDate() || $invoice->getInvoicePeriodEndDate()) {
             $html .= '<div class="pep-refs-grid" style="margin-bottom:32px">';
             $html .= $this->refCell($l('period_start'), $this->fmtDate($invoice->getInvoicePeriodStartDate()));
-            $html .= $this->refCell($l('period_end'),   $this->fmtDate($invoice->getInvoicePeriodEndDate()));
+            $html .= $this->refCell($l('period_end'), $this->fmtDate($invoice->getInvoicePeriodEndDate()));
             $html .= '</div>';
         }
 
@@ -318,12 +329,12 @@ class InvoiceHtmlRenderer
 
             // Métadonnées article
             $metas = array_filter([
-                $l('seller_ref')     => $line->getSellerItemId(),
+                $l('seller_ref') => $line->getSellerItemId(),
                 $l('buyer_item_ref') => $line->getBuyerItemId(),
-                $l('gtin')           => $line->getStandardItemId(),
+                $l('gtin') => $line->getStandardItemId(),
                 ($line->getItemClassificationListId() ?? 'Classif.') => $line->getItemClassificationCode(),
-                $l('origin')         => $line->getOriginCountryCode(),
-                $l('order_line')     => $line->getOrderLineReference(),
+                $l('origin') => $line->getOriginCountryCode(),
+                $l('order_line') => $line->getOrderLineReference(),
             ]);
             if ($line->getLinePeriodStartDate()) {
                 $metas[$l('period')] = $this->fmtDate($line->getLinePeriodStartDate())
@@ -332,7 +343,7 @@ class InvoiceHtmlRenderer
             if (!empty($metas)) {
                 $html .= '<div class="pep-line-meta">';
                 foreach ($metas as $mk => $mv) {
-                    $html .= '<span>' . $this->e((string)$mk) . ' : ' . $this->e((string)$mv) . '</span>';
+                    $html .= '<span>' . $this->e((string) $mk) . ' : ' . $this->e((string) $mv) . '</span>';
                 }
                 $html .= '</div>';
             }
@@ -380,7 +391,7 @@ class InvoiceHtmlRenderer
                     . '<td>' . $this->e($ac->getReason() ?? '—') . '</td>'
                     . '<td>' . $this->e($ac->getReasonCode() ?? '—') . '</td>'
                     . '<td>' . $this->e($ac->getVatCategory())
-                        . ($ac->getVatRate() > 0 ? ' ' . number_format($ac->getVatRate(), 0) . '%' : '') . '</td>'
+                    . ($ac->getVatRate() > 0 ? ' ' . number_format($ac->getVatRate(), 0) . '%' : '') . '</td>'
                     . '<td class="r pep-accent">' . $this->fmt($ac->getAmount(), $cur) . '</td>'
                     . '</tr>';
             }
@@ -453,6 +464,14 @@ class InvoiceHtmlRenderer
                     . '</div></div></div>';
             }
             $html .= '</div>'; // .pep-payment
+            if ($qrUrl !== null) {
+                $html .= '<div style="margin-top:16px;text-align:center">';
+                $html .= '<img src="' . $this->e($qrUrl) . '" alt="QR code paiement" '
+                    . 'style="width:120px;height:120px;display:block;margin:0 auto 6px">';
+                $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;text-transform:uppercase">'
+                    . 'Scannez pour payer</div>';
+                $html .= '</div>';
+            }
         }
 
         // ── Pièces jointes ───────────────────────────────────────
@@ -510,7 +529,7 @@ class InvoiceHtmlRenderer
 
     private function renderParty(?Party $party, string $role, string $side): string
     {
-        $html  = '<div class="pep-party pep-party-' . $side . '">';
+        $html = '<div class="pep-party pep-party-' . $side . '">';
         $html .= '<div class="pep-party-role">' . $this->e($role) . '</div>';
         $html .= '<div class="pep-party-name">' . $this->e($party?->getName() ?? '—') . '</div>';
 
@@ -604,7 +623,8 @@ class InvoiceHtmlRenderer
 
     private function fmtDate(?string $date): string
     {
-        if (!$date) return '—';
+        if (!$date)
+            return '—';
         try {
             return (new \DateTime($date))->format('d/m/Y');
         } catch (\Exception) {
