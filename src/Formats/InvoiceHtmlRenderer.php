@@ -309,14 +309,15 @@ class InvoiceHtmlRenderer
         $html .= '<div class="pep-section-title">' . $l('lines') . '</div>';
         $html .= '<table class="pep-table">';
         $html .= '<thead><tr>'
-            . '<th style="width:28px">' . $l('col_num') . '</th>'
+            . '<th style="width:24px">' . $l('col_num') . '</th>'
             . '<th>' . $l('col_desc') . '</th>'
-            . '<th class="r" style="width:80px">' . $l('col_qty') . '</th>'
-            . '<th style="width:50px">' . $l('col_unit') . '</th>'
-            . '<th class="r" style="width:110px">' . $l('col_up') . '</th>'
-            . '<th style="width:60px">' . $l('col_vat') . '</th>'
-            . '<th class="r" style="width:120px">' . $l('col_total') . '</th>'
-            . '</tr></thead><tbody>';
+            . '<th class="r" style="width:55px">' . $l('col_qty') . '</th>'
+            . '<th style="width:38px">' . $l('col_unit') . '</th>'
+            . '<th class="r" style="width:95px">' . $l('col_up') . '</th>'
+            . '<th style="width:52px">' . $l('col_vat') . '</th>'
+            . '<th class="r" style="width:95px">' . $l('col_total') . '</th>'
+            . '</tr></thead><tbody';
+
 
         foreach ($lines as $i => $line) {
             $html .= '<tr>';
@@ -441,10 +442,11 @@ class InvoiceHtmlRenderer
 
         // ── Paiement ─────────────────────────────────────────────
         if ($payment?->getIban() || $invoice->getPaymentTerms()) {
-            $qrClass = $qrUrl !== null ? ' pep-payment-with-qr' : '';
             $html .= '<div class="pep-payment' . $qrClass . '">';
+
+            // Colonne gauche — IBAN et conditions empilés verticalement
+            $html .= '<div class="pep-payment-left">';
             if ($payment?->getIban()) {
-                $html .= '<div>';
                 $html .= '<div class="pep-section-title">' . $l('banking') . '</div>';
                 $html .= '<div class="pep-pay-block">';
                 $html .= $this->payRow($l('iban'), $payment->getIban());
@@ -455,23 +457,24 @@ class InvoiceHtmlRenderer
                     $html .= $this->payRow($l('pay_ref'), $payment->getPaymentReference());
                 }
                 $html .= $this->payRow($l('pay_code'), $payment->getPaymentMeansCode());
-                $html .= '</div></div>';
-            }
-            if ($invoice->getPaymentTerms()) {
-                $html .= '<div>';
-                $html .= '<div class="pep-section-title">' . $l('pay_terms') . '</div>';
-                $html .= '<div class="pep-pay-block"><div class="pep-terms">'
-                    . nl2br($this->e($invoice->getPaymentTerms()))
-                    . '</div></div></div>';
-            }
-            if ($qrUrl !== null) {
-                $html .= '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">';
-                $html .= '<img src="' . $this->e($qrUrl) . '" alt="QR code paiement" '
-                    . 'style="width:150px;height:150px;display:block">';
-                $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;'
-                    . 'text-transform:uppercase;margin-top:8px;text-align:center">Scannez pour payer</div>';
                 $html .= '</div>';
             }
+            if ($invoice->getPaymentTerms()) {
+                $html .= '<div class="pep-section-title" style="margin-top:20px">' . $l('pay_terms') . '</div>';
+                $html .= '<div class="pep-pay-block"><div class="pep-terms">'
+                    . nl2br($this->e($invoice->getPaymentTerms()))
+                    . '</div></div>';
+            }
+            $html .= '</div>'; // .pep-payment-left
+
+            // Colonne droite — QR seul, centré verticalement
+            if ($qrUrl !== null) {
+                $html .= '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">';
+                $html .= '<img src="' . $this->e($qrUrl) . '" alt="QR code paiement" style="width:150px;height:150px;display:block">';
+                $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;text-transform:uppercase;margin-top:8px;text-align:center">Scannez pour payer</div>';
+                $html .= '</div>';
+            }
+
             $html .= '</div>'; // .pep-payment
         }
 
@@ -640,7 +643,7 @@ class InvoiceHtmlRenderer
     private function css(bool $standalone = false): string
     {
         $bodyRules = $standalone
-            ? 'body.pep-body{font-family:"DM Sans",sans-serif;font-weight:300;font-size:13.5px;line-height:1.6;background:#faf9f7;color:#1a1814;padding:40px 20px;}'
+            ? body.pep-body{font-family:"DM Sans",sans-serif;font-weight:300;font-size:13.5px;line-height:1.6;background:#faf9f7;color:#1a1814;padding:40px 20px;max-width:1200px;margin:0 auto;}'
             : '';
 
         return $bodyRules . '
@@ -649,7 +652,7 @@ class InvoiceHtmlRenderer
   --pep-bg:#faf9f7;--pep-bg-alt:#f2efe9;--pep-accent:#b5451b;
   --pep-green:#2d6a4f;--pep-white:#ffffff;
 }
-.pep-doc{max-width:860px;margin:0 auto;background:var(--pep-white);
+.pep-doc{width:100%;max-width:1100px;margin:0 auto;background:var(--pep-white);
   box-shadow:0 2px 20px rgba(26,24,20,.08);border-top:4px solid var(--pep-accent);
   font-family:"DM Sans",sans-serif;font-weight:300;font-size:13.5px;
   line-height:1.6;color:var(--pep-ink);}
@@ -742,8 +745,9 @@ class InvoiceHtmlRenderer
 /* Paiement */
 
 .pep-payment{margin-top:40px;padding-top:24px;border-top:1px solid var(--pep-rule);
-  display:grid;grid-template-columns:1fr 1fr;gap:32px;}
-.pep-payment-with-qr{grid-template-columns:1fr 1fr}
+  display:grid;grid-template-columns:1fr auto;gap:40px;align-items:start;}
+.pep-payment-with-qr{grid-template-columns:1fr auto;}
+.pep-payment-left{display:flex;flex-direction:column;}
 .pep-pay-block{background:var(--pep-bg-alt);padding:20px 24px;}
 .pep-pay-label{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
   color:var(--pep-muted);margin-bottom:4px;margin-top:12px;}

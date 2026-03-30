@@ -325,6 +325,54 @@ class XmlImporter
                 $anomalies[] = sprintf('BG-14 : période de facturation en-tête invalide ignorée — %s', $e->getMessage());
             }
         }
+
+        // Détection des éléments racine non reconnus
+        $knownInvoiceElements = [
+            'UBLVersionID',
+            'CustomizationID',
+            'ProfileID',
+            'ID',
+            'IssueDate',
+            'DueDate',
+            'InvoiceTypeCode',
+            'Note',
+            'DocumentCurrencyCode',
+            'AccountingCost',
+            'BuyerReference',
+            'InvoicePeriod',
+            'OrderReference',
+            'BillingReference',
+            'DespatchDocumentReference',
+            'ReceiptDocumentReference',
+            'ContractDocumentReference',
+            'AdditionalDocumentReference',
+            'ProjectReference',
+            'AccountingSupplierParty',
+            'AccountingCustomerParty',
+            'Delivery',
+            'PaymentMeans',
+            'PaymentTerms',
+            'AllowanceCharge',
+            'TaxTotal',
+            'LegalMonetaryTotal',
+            'InvoiceLine',
+        ];
+        $rootNode = $xpath->query('/ubl:Invoice')->item(0);
+        if ($rootNode !== null) {
+            foreach ($rootNode->childNodes as $child) {
+                if ($child->nodeType !== XML_ELEMENT_NODE) {
+                    continue;
+                }
+                if (!in_array($child->localName, $knownInvoiceElements, true)) {
+                    $anomalies[] = sprintf(
+                        'Élément racine inattendu « %s » ignoré — non supporté par cette bibliothèque',
+                        $child->localName
+                    );
+                }
+            }
+        }
+
+
     }
 
     // =========================================================================
@@ -895,6 +943,31 @@ class XmlImporter
                 }
             }
 
+            // Détection des éléments enfants non reconnus dans la ligne
+            $knownLineElements = [
+                'ID',
+                'Note',
+                'InvoicedQuantity',
+                'LineExtensionAmount',
+                'AccountingCost',
+                'InvoicePeriod',
+                'OrderLineReference',
+                'AllowanceCharge',
+                'Item',
+                'Price',
+            ];
+            foreach ($lineNode->childNodes as $child) {
+                if ($child->nodeType !== XML_ELEMENT_NODE) {
+                    continue;
+                }
+                if (!in_array($child->localName, $knownLineElements, true)) {
+                    $anomalies[] = sprintf(
+                        'Ligne %s : élément inattendu « %s » ignoré — non supporté par cette bibliothèque',
+                        $lineId,
+                        $child->localName
+                    );
+                }
+            }
             $invoice->addInvoiceLine($line);
         }
     }
