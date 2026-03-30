@@ -869,7 +869,6 @@ abstract class InvoiceBase implements \JsonSerializable
             $this->sumOfLineNetAmounts += $line->getLineAmount();
 
             $vatKey = $line->getVatCategory() . '_' . $line->getVatRate();
-
             if (!isset($this->vatBreakdown[$vatKey])) {
                 $this->vatBreakdown[$vatKey] = new VatBreakdown(
                     $line->getVatCategory(),
@@ -878,17 +877,13 @@ abstract class InvoiceBase implements \JsonSerializable
                     0.0
                 );
             }
-
-            $this->vatBreakdown[$vatKey]->addAmount(
-                $line->getLineAmount(),
-                $line->getLineVatAmount()
-            );
+            // On n'additionne QUE la base ici — la TVA sera calculée après agrégation
+            $this->vatBreakdown[$vatKey]->addAmount($line->getLineAmount(), 0.0);
         }
 
         // ---- AllowanceCharge au niveau document ------------------------------
         foreach ($this->allowanceCharges as $ac) {
             $vatKey = $ac->getVatCategory() . '_' . $ac->getVatRate();
-
             if (!isset($this->vatBreakdown[$vatKey])) {
                 $this->vatBreakdown[$vatKey] = new VatBreakdown(
                     $ac->getVatCategory(),
@@ -897,15 +892,12 @@ abstract class InvoiceBase implements \JsonSerializable
                     0.0
                 );
             }
-
             if ($ac->isAllowance()) {
-                // Une remise réduit la base taxable et la TVA correspondante
                 $this->sumOfAllowances += $ac->getAmount();
-                $this->vatBreakdown[$vatKey]->addAmount(-$ac->getAmount(), -$ac->getVatAmount());
+                $this->vatBreakdown[$vatKey]->addAmount(-$ac->getAmount(), 0.0);
             } else {
-                // Une majoration augmente la base taxable et la TVA correspondante
                 $this->sumOfCharges += $ac->getAmount();
-                $this->vatBreakdown[$vatKey]->addAmount($ac->getAmount(), $ac->getVatAmount());
+                $this->vatBreakdown[$vatKey]->addAmount($ac->getAmount(), 0.0);
             }
         }
 
@@ -914,16 +906,19 @@ abstract class InvoiceBase implements \JsonSerializable
         $this->sumOfAllowances = round($this->sumOfAllowances, 2);
         $this->sumOfCharges = round($this->sumOfCharges, 2);
 
-        // BT-109 : montant net total HT
+        // BT-109
         $this->taxExclusiveAmount = round(
             $this->sumOfLineNetAmounts - $this->sumOfAllowances + $this->sumOfCharges,
             2
         );
 
-        // BT-110 : total TVA
+        // BT-110 — TVA calculée par taux sur base agrégée (spec EN 16931)
+        // round() appliqué PAR TAUX, pas par ligne — évite l'accumulation d'arrondis
         $this->totalVatAmount = 0.0;
         foreach ($this->vatBreakdown as $vat) {
-            $this->totalVatAmount += $vat->getTaxAmount();
+            $taxAmount = round($vat->getTaxableAmount() * $vat->getRate() / 100, 2);
+            $vat->setTaxAmount($taxAmount);
+            $this->totalVatAmount += $taxAmount;
         }
         $this->totalVatAmount = round($this->totalVatAmount, 2);
 
@@ -1000,22 +995,38 @@ abstract class InvoiceBase implements \JsonSerializable
         $recalcTaxExclusive = 0.0;
         $recalcTaxAmount = 0.0;
 
+        // TVA calculée par taux sur base agrégée, comme la spec l'exige
         foreach ($this->invoiceLines as $line) {
             $recalcTaxExclusive += $line->getLineAmount();
-            $recalcTaxAmount += $line->getLineVatAmount();
         }
 
         foreach ($this->allowanceCharges as $ac) {
             if ($ac->isAllowance()) {
                 $recalcTaxExclusive -= $ac->getAmount();
-                $recalcTaxAmount -= $ac->getVatAmount();
             } else {
                 $recalcTaxExclusive += $ac->getAmount();
-                $recalcTaxAmount += $ac->getVatAmount();
             }
         }
 
         $recalcTaxExclusive = round($recalcTaxExclusive, 2);
+
+        // Agréger les bases par taux de TVA, puis calculer la TVA par groupe
+        $vatByRate = [];
+        foreach ($this->invoiceLines as $line) {
+            $key = $line->getVatCategory() . '_' . $line->getVatRate();
+            $vatByRate[$key] = ($vatByRate[$key] ?? 0.0) + $line->getLineAmount();
+        }
+        foreach ($this->allowanceCharges as $ac) {
+            $key = $ac->getVatCategory() . '_' . $ac->getVatRate();
+            $delta = $ac->isAllowance() ? -$ac->getAmount() : $ac->getAmount();
+            $vatByRate[$key] = ($vatByRate[$key] ?? 0.0) + $delta;
+        }
+
+        $recalcTaxAmount = 0.0;
+        foreach ($vatByRate as $key => $base) {
+            $rate = (float) explode('_', $key)[1];
+            $recalcTaxAmount += round($base * $rate / 100, 2);
+        }
         $recalcTaxAmount = round($recalcTaxAmount, 2);
         $recalcTaxInclusive = round($recalcTaxExclusive + $recalcTaxAmount, 2);
 
