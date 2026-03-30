@@ -467,7 +467,7 @@ class InvoiceHtmlRenderer
             if ($qrUrl !== null) {
                 $html .= '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">';
                 $html .= '<img src="' . $this->e($qrUrl) . '" alt="QR code paiement" '
-                    . 'style="width:110px;height:110px;display:block">';
+                    . 'style="width:150px;height:150px;display:block">';
                 $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;'
                     . 'text-transform:uppercase;margin-top:8px;text-align:center">Scannez pour payer</div>';
                 $html .= '</div>';
@@ -743,7 +743,7 @@ class InvoiceHtmlRenderer
 
 .pep-payment{margin-top:40px;padding-top:24px;border-top:1px solid var(--pep-rule);
   display:grid;grid-template-columns:1fr 1fr;gap:32px;}
-.pep-payment-with-qr{grid-template-columns:1fr 1fr 140px;}
+.pep-payment-with-qr{grid-template-columns:1fr 1fr}
 .pep-pay-block{background:var(--pep-bg-alt);padding:20px 24px;}
 .pep-pay-label{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
   color:var(--pep-muted);margin-bottom:4px;margin-top:12px;}
