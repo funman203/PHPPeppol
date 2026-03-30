@@ -443,9 +443,16 @@ class InvoiceHtmlRenderer
         // ── Paiement ─────────────────────────────────────────────
         if ($payment?->getIban() || $invoice->getPaymentTerms()) {
             $html .= '<div class="pep-payment' . $qrClass . '">';
-
             // Colonne gauche — IBAN et conditions empilés verticalement
+
+
             $html .= '<div class="pep-payment-left">';
+            if ($invoice->getPaymentTerms()) {
+                $html .= '<div class="pep-section-title" style="margin-top:20px">' . $l('pay_terms') . '</div>';
+                $html .= '<div class="pep-pay-block"><div class="pep-terms">'
+                    . nl2br($this->e($invoice->getPaymentTerms()))
+                    . '</div></div>';
+            }            
             if ($payment?->getIban()) {
                 $html .= '<div class="pep-section-title">' . $l('banking') . '</div>';
                 $html .= '<div class="pep-pay-block">';
@@ -459,12 +466,7 @@ class InvoiceHtmlRenderer
                 $html .= $this->payRow($l('pay_code'), $payment->getPaymentMeansCode());
                 $html .= '</div>';
             }
-            if ($invoice->getPaymentTerms()) {
-                $html .= '<div class="pep-section-title" style="margin-top:20px">' . $l('pay_terms') . '</div>';
-                $html .= '<div class="pep-pay-block"><div class="pep-terms">'
-                    . nl2br($this->e($invoice->getPaymentTerms()))
-                    . '</div></div>';
-            }
+
             $html .= '</div>'; // .pep-payment-left
 
             // Colonne droite — QR seul, centré verticalement
