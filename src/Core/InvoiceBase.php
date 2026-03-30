@@ -26,11 +26,12 @@ use Peppol\Models\AllowanceCharge;
  * @link https://docs.peppol.eu/poacc/billing/3.0/
  * @link https://www.nen.nl/en/standard/nen-en-16931-1-2017/
  */
-abstract class InvoiceBase implements \JsonSerializable {
+abstract class InvoiceBase implements \JsonSerializable
+{
 
     use InvoiceValidatorTrait;
 
-// =========================================================================
+    // =========================================================================
     // Informations de base de la facture (BT-1 … BT-22)
     // =========================================================================
 
@@ -296,10 +297,10 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @throws \InvalidArgumentException Si l'un des paramètres est invalide
      */
     public function __construct(
-            string $invoiceNumber,
-            string $issueDate,
-            string $invoiceTypeCode = '380',
-            string $currencyCode = 'EUR'
+        string $invoiceNumber,
+        string $issueDate,
+        string $invoiceTypeCode = '380',
+        string $currencyCode = 'EUR'
     ) {
         $this->setInvoiceNumber($invoiceNumber);
         $this->setIssueDate($issueDate);
@@ -320,7 +321,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $invoiceNumber
      * @throws \InvalidArgumentException
      */
-    protected function setInvoiceNumber(string $invoiceNumber): void {
+    protected function setInvoiceNumber(string $invoiceNumber): void
+    {
         if (!$this->validateNotEmpty($invoiceNumber)) {
             throw new \InvalidArgumentException('Le numéro de facture ne peut pas être vide');
         }
@@ -338,7 +340,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $issueDate Format YYYY-MM-DD
      * @throws \InvalidArgumentException
      */
-    protected function setIssueDate(string $issueDate): void {
+    protected function setIssueDate(string $issueDate): void
+    {
         if (!$this->validateDate($issueDate)) {
             throw new \InvalidArgumentException('Format de date invalide (YYYY-MM-DD)');
         }
@@ -353,12 +356,13 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @throws \InvalidArgumentException
      * @see InvoiceConstants::INVOICE_TYPE_CODES
      */
-    protected function setInvoiceTypeCode(string $invoiceTypeCode): void {
+    protected function setInvoiceTypeCode(string $invoiceTypeCode): void
+    {
         if (!$this->validateKeyExists($invoiceTypeCode, InvoiceConstants::INVOICE_TYPE_CODES)) {
             throw new \InvalidArgumentException(
-                            'Code de type de facture invalide. Codes valides: ' .
-                            implode(', ', array_keys(InvoiceConstants::INVOICE_TYPE_CODES))
-                    );
+                'Code de type de facture invalide. Codes valides: ' .
+                implode(', ', array_keys(InvoiceConstants::INVOICE_TYPE_CODES))
+            );
         }
 
         $this->invoiceTypeCode = $invoiceTypeCode;
@@ -371,11 +375,12 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @throws \InvalidArgumentException
      * @see InvoiceConstants::CURRENCY_CODES
      */
-    protected function setDocumentCurrencyCode(string $currencyCode): void {
+    protected function setDocumentCurrencyCode(string $currencyCode): void
+    {
         if (!$this->validateInList($currencyCode, InvoiceConstants::CURRENCY_CODES)) {
             throw new \InvalidArgumentException(
-                            'Code devise invalide. Codes valides: ' . implode(', ', InvoiceConstants::CURRENCY_CODES)
-                    );
+                'Code devise invalide. Codes valides: ' . implode(', ', InvoiceConstants::CURRENCY_CODES)
+            );
         }
 
         $this->documentCurrencyCode = $currencyCode;
@@ -394,15 +399,16 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return self
      * @throws \InvalidArgumentException Si le format est invalide ou si la date est antérieure à l'émission
      */
-    public function setDueDate(string $dueDate): self {
+    public function setDueDate(string $dueDate): self
+    {
         if (!$this->validateDate($dueDate)) {
             throw new \InvalidArgumentException("Format de date d'échéance invalide (YYYY-MM-DD)");
         }
 
         if ($dueDate < $this->issueDate) {
             throw new \InvalidArgumentException(
-                            "La date d'échéance ne peut pas être antérieure à la date d'émission"
-                    );
+                "La date d'échéance ne peut pas être antérieure à la date d'émission"
+            );
         }
 
         $this->dueDate = $dueDate;
@@ -416,7 +422,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return self
      * @throws \InvalidArgumentException
      */
-    public function setDeliveryDate(string $deliveryDate): self {
+    public function setDeliveryDate(string $deliveryDate): self
+    {
         if (!$this->validateDate($deliveryDate)) {
             throw new \InvalidArgumentException('Format de date de livraison invalide (YYYY-MM-DD)');
         }
@@ -433,7 +440,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $buyerReference Référence libre de l'acheteur
      * @return self
      */
-    public function setBuyerReference(string $buyerReference): self {
+    public function setBuyerReference(string $buyerReference): self
+    {
         $this->buyerReference = $buyerReference;
         return $this;
     }
@@ -444,7 +452,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $purchaseOrderReference Numéro de commande acheteur (BT-13)
      * @return self
      */
-    public function setPurchaseOrderReference(string $purchaseOrderReference): self {
+    public function setPurchaseOrderReference(string $purchaseOrderReference): self
+    {
         $this->purchaseOrderReference = $purchaseOrderReference;
         return $this;
     }
@@ -455,7 +464,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $salesOrderReference Numéro d'ordre de vente (BT-14)
      * @return self
      */
-    public function setSalesOrderReference(string $salesOrderReference): self {
+    public function setSalesOrderReference(string $salesOrderReference): self
+    {
         $this->salesOrderReference = $salesOrderReference;
         return $this;
     }
@@ -466,7 +476,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $contractReference Numéro de contrat (BT-12)
      * @return self
      */
-    public function setContractReference(string $contractReference): self {
+    public function setContractReference(string $contractReference): self
+    {
         $this->contractReference = $contractReference;
         return $this;
     }
@@ -477,7 +488,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $ref Référence avis de réception (BT-15)
      * @return self
      */
-    public function setReceivingAdviceReference(string $ref): self {
+    public function setReceivingAdviceReference(string $ref): self
+    {
         $this->receivingAdviceReference = $ref;
         return $this;
     }
@@ -488,7 +500,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $ref Référence avis d'expédition (BT-16)
      * @return self
      */
-    public function setDespatchAdviceReference(string $ref): self {
+    public function setDespatchAdviceReference(string $ref): self
+    {
         $this->despatchAdviceReference = $ref;
         return $this;
     }
@@ -499,7 +512,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $projectReference Identifiant de projet (BT-11)
      * @return self
      */
-    public function setProjectReference(string $projectReference): self {
+    public function setProjectReference(string $projectReference): self
+    {
         $this->projectReference = $projectReference;
         return $this;
     }
@@ -512,7 +526,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $ref Référence comptable (BT-19)
      * @return self
      */
-    public function setBuyerAccountingReference(string $ref): self {
+    public function setBuyerAccountingReference(string $ref): self
+    {
         $this->buyerAccountingReference = $ref;
         return $this;
     }
@@ -526,7 +541,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $note Note libre
      * @return self
      */
-    public function setInvoiceNote(string $note): self {
+    public function setInvoiceNote(string $note): self
+    {
         $this->invoiceNote = $note;
         return $this;
     }
@@ -542,7 +558,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return self
      * @throws \InvalidArgumentException
      */
-    public function setInvoicePeriod(?string $startDate, ?string $endDate): self {
+    public function setInvoicePeriod(?string $startDate, ?string $endDate): self
+    {
         if ($startDate !== null && !$this->validateDate($startDate)) {
             throw new \InvalidArgumentException('Format de date de début de période invalide (YYYY-MM-DD)');
         }
@@ -551,8 +568,8 @@ abstract class InvoiceBase implements \JsonSerializable {
         }
         if ($startDate !== null && $endDate !== null && $endDate < $startDate) {
             throw new \InvalidArgumentException(
-                            'La date de fin de période ne peut pas être antérieure à la date de début'
-                    );
+                'La date de fin de période ne peut pas être antérieure à la date de début'
+            );
         }
 
         $this->invoicePeriodStartDate = $startDate;
@@ -577,17 +594,18 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return self
      * @throws \InvalidArgumentException Si le numéro est vide ou la date invalide
      */
-    public function setPrecedingInvoiceReference(string $invoiceNumber, ?string $issueDate = null): self {
+    public function setPrecedingInvoiceReference(string $invoiceNumber, ?string $issueDate = null): self
+    {
         if (!$this->validateNotEmpty($invoiceNumber)) {
             throw new \InvalidArgumentException(
-                            'Le numéro de la facture précédente ne peut pas être vide'
-                    );
+                'Le numéro de la facture précédente ne peut pas être vide'
+            );
         }
 
         if ($issueDate !== null && !$this->validateDate($issueDate)) {
             throw new \InvalidArgumentException(
-                            'Format de date de la facture précédente invalide (YYYY-MM-DD)'
-                    );
+                'Format de date de la facture précédente invalide (YYYY-MM-DD)'
+            );
         }
 
         $this->precedingInvoiceNumber = $invoiceNumber;
@@ -605,7 +623,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param Party $seller Partie vendeur (BG-4)
      * @return self
      */
-    public function setSeller(Party $seller): self {
+    public function setSeller(Party $seller): self
+    {
         $this->seller = $seller;
         return $this;
     }
@@ -616,7 +635,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param Party $buyer Partie acheteur (BG-7)
      * @return self
      */
-    public function setBuyer(Party $buyer): self {
+    public function setBuyer(Party $buyer): self
+    {
         $this->buyer = $buyer;
         return $this;
     }
@@ -631,7 +651,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param InvoiceLine $line Ligne de facture (BG-25)
      * @return self
      */
-    public function addInvoiceLine(InvoiceLine $line): self {
+    public function addInvoiceLine(InvoiceLine $line): self
+    {
         $this->invoiceLines[] = $line;
         return $this;
     }
@@ -646,7 +667,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param AllowanceCharge $ac Remise (BG-20) ou majoration (BG-21)
      * @return self
      */
-    public function addAllowanceCharge(AllowanceCharge $ac): self {
+    public function addAllowanceCharge(AllowanceCharge $ac): self
+    {
         $this->allowanceCharges[] = $ac;
         return $this;
     }
@@ -665,19 +687,25 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @throws \InvalidArgumentException
      */
     public function addAllowance(
-            float $amount,
-            string $vatCategory = 'S',
-            float $vatRate = 21.0,
-            ?string $reasonCode = null,
-            ?string $reason = null,
-            ?float $baseAmount = null,
-            ?float $percent = null
+        float $amount,
+        string $vatCategory = 'S',
+        float $vatRate = 21.0,
+        ?string $reasonCode = null,
+        ?string $reason = null,
+        ?float $baseAmount = null,
+        ?float $percent = null
     ): self {
         return $this->addAllowanceCharge(
-                        AllowanceCharge::createAllowance(
-                                $amount, $vatCategory, $vatRate, $baseAmount, $percent, $reasonCode, $reason
-                        )
-                );
+            AllowanceCharge::createAllowance(
+                $amount,
+                $vatCategory,
+                $vatRate,
+                $baseAmount,
+                $percent,
+                $reasonCode,
+                $reason
+            )
+        );
     }
 
     /**
@@ -694,19 +722,25 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @throws \InvalidArgumentException
      */
     public function addCharge(
-            float $amount,
-            string $vatCategory = 'S',
-            float $vatRate = 21.0,
-            ?string $reasonCode = null,
-            ?string $reason = null,
-            ?float $baseAmount = null,
-            ?float $percent = null
+        float $amount,
+        string $vatCategory = 'S',
+        float $vatRate = 21.0,
+        ?string $reasonCode = null,
+        ?string $reason = null,
+        ?float $baseAmount = null,
+        ?float $percent = null
     ): self {
         return $this->addAllowanceCharge(
-                        AllowanceCharge::createCharge(
-                                $amount, $vatCategory, $vatRate, $baseAmount, $percent, $reasonCode, $reason
-                        )
-                );
+            AllowanceCharge::createCharge(
+                $amount,
+                $vatCategory,
+                $vatRate,
+                $baseAmount,
+                $percent,
+                $reasonCode,
+                $reason
+            )
+        );
     }
 
     // =========================================================================
@@ -719,7 +753,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param PaymentInfo $paymentInfo Informations de paiement (BG-16, BG-17)
      * @return self
      */
-    public function setPaymentInfo(PaymentInfo $paymentInfo): self {
+    public function setPaymentInfo(PaymentInfo $paymentInfo): self
+    {
         $this->paymentInfo = $paymentInfo;
         return $this;
     }
@@ -733,7 +768,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param string $paymentTerms Texte libre décrivant les conditions (BT-20)
      * @return self
      */
-    public function setPaymentTerms(string $paymentTerms): self {
+    public function setPaymentTerms(string $paymentTerms): self
+    {
         $this->paymentTerms = $paymentTerms;
 
         // Propagation dans PaymentInfo si elle existe déjà
@@ -754,7 +790,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param AttachedDocument $document Document joint (BG-24)
      * @return self
      */
-    public function attachDocument(AttachedDocument $document): self {
+    public function attachDocument(AttachedDocument $document): self
+    {
         $this->attachedDocuments[] = $document;
         return $this;
     }
@@ -772,7 +809,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @param float $prepaidAmount Montant déjà versé
      * @return self
      */
-    public function setPrepaidAmount(float $prepaidAmount): self {
+    public function setPrepaidAmount(float $prepaidAmount): self
+    {
         $this->prepaidAmount = $prepaidAmount;
         if ($this->taxInclusiveAmount > 0.0) {
             $this->payableAmount = round($this->taxInclusiveAmount - $this->prepaidAmount, 2);
@@ -785,7 +823,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      *
      * @return float
      */
-    public function getPrepaidAmount(): float {
+    public function getPrepaidAmount(): float
+    {
         return $this->prepaidAmount;
     }
 
@@ -811,11 +850,12 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return self
      * @throws \InvalidArgumentException Si la facture ne contient aucune ligne
      */
-    public function calculateTotals(): self {
+    public function calculateTotals(): self
+    {
         if (empty($this->invoiceLines)) {
             throw new \InvalidArgumentException(
-                            'Impossible de calculer les totaux sans lignes de facture'
-                    );
+                'Impossible de calculer les totaux sans lignes de facture'
+            );
         }
 
         // ---- Réinitialisation ------------------------------------------------
@@ -832,16 +872,16 @@ abstract class InvoiceBase implements \JsonSerializable {
 
             if (!isset($this->vatBreakdown[$vatKey])) {
                 $this->vatBreakdown[$vatKey] = new VatBreakdown(
-                        $line->getVatCategory(),
-                        $line->getVatRate(),
-                        0.0,
-                        0.0
+                    $line->getVatCategory(),
+                    $line->getVatRate(),
+                    0.0,
+                    0.0
                 );
             }
 
             $this->vatBreakdown[$vatKey]->addAmount(
-                    $line->getLineAmount(),
-                    $line->getLineVatAmount()
+                $line->getLineAmount(),
+                $line->getLineVatAmount()
             );
         }
 
@@ -851,10 +891,10 @@ abstract class InvoiceBase implements \JsonSerializable {
 
             if (!isset($this->vatBreakdown[$vatKey])) {
                 $this->vatBreakdown[$vatKey] = new VatBreakdown(
-                        $ac->getVatCategory(),
-                        $ac->getVatRate(),
-                        0.0,
-                        0.0
+                    $ac->getVatCategory(),
+                    $ac->getVatRate(),
+                    0.0,
+                    0.0
                 );
             }
 
@@ -876,8 +916,8 @@ abstract class InvoiceBase implements \JsonSerializable {
 
         // BT-109 : montant net total HT
         $this->taxExclusiveAmount = round(
-                $this->sumOfLineNetAmounts - $this->sumOfAllowances + $this->sumOfCharges,
-                2
+            $this->sumOfLineNetAmounts - $this->sumOfAllowances + $this->sumOfCharges,
+            2
         );
 
         // BT-110 : total TVA
@@ -912,12 +952,12 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return void
      */
     public function setImportedTotals(
-            float $lineExtension,
-            float $taxExclusive,
-            float $taxInclusive,
-            float $prepaid,
-            float $payable,
-            float $taxAmount
+        float $lineExtension,
+        float $taxExclusive,
+        float $taxInclusive,
+        float $prepaid,
+        float $payable,
+        float $taxAmount
     ): void {
         $this->importedTotals = [
             'lineExtension' => $lineExtension,
@@ -934,7 +974,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      *
      * @return array{lineExtension:float, taxExclusive:float, taxInclusive:float, prepaid:float, payable:float, taxAmount:float}|null
      */
-    public function getImportedTotals(): ?array {
+    public function getImportedTotals(): ?array
+    {
         return $this->importedTotals;
     }
 
@@ -950,7 +991,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * @return array<string, array{declared:float, calculated:float, diff:float}>
      *         Clés possibles : 'taxExclusive', 'taxInclusive', 'taxAmount'
      */
-    public function checkImportedTotals(float $threshold = 0.02): array {
+    public function checkImportedTotals(): array
+    {
         if ($this->importedTotals === null) {
             return [];
         }
@@ -963,7 +1005,6 @@ abstract class InvoiceBase implements \JsonSerializable {
             $recalcTaxAmount += $line->getLineVatAmount();
         }
 
-        // Intégrer les AllowanceCharge dans le recalcul
         foreach ($this->allowanceCharges as $ac) {
             if ($ac->isAllowance()) {
                 $recalcTaxExclusive -= $ac->getAmount();
@@ -978,17 +1019,15 @@ abstract class InvoiceBase implements \JsonSerializable {
         $recalcTaxAmount = round($recalcTaxAmount, 2);
         $recalcTaxInclusive = round($recalcTaxExclusive + $recalcTaxAmount, 2);
 
-        $candidates = [
+        $warnings = [];
+        foreach ([
             'taxExclusive' => $recalcTaxExclusive,
             'taxInclusive' => $recalcTaxInclusive,
             'taxAmount' => $recalcTaxAmount,
-        ];
-
-        $warnings = [];
-        foreach ($candidates as $key => $calcValue) {
+        ] as $key => $calcValue) {
             $declared = $this->importedTotals[$key];
-            $diff = abs($declared - $calcValue);
-            if ($diff > $threshold) {
+            $diff = round(abs($declared - $calcValue), 2);
+            if ($diff > 0.0) {
                 $warnings[$key] = [
                     'declared' => $declared,
                     'calculated' => $calcValue,
@@ -1023,7 +1062,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      *
      * @return array<string> Liste des erreurs (tableau vide si valide)
      */
-    public function validate(): array {
+    public function validate(): array
+    {
         $errors = [];
 
         // BR-01: Une facture doit avoir un numéro
@@ -1076,8 +1116,8 @@ abstract class InvoiceBase implements \JsonSerializable {
             $lineErrors = $line->validate();
             if (!empty($lineErrors)) {
                 $errors = array_merge(
-                        $errors,
-                        array_map(fn($e) => 'Ligne ' . ($index + 1) . ": $e", $lineErrors)
+                    $errors,
+                    array_map(fn($e) => 'Ligne ' . ($index + 1) . ": $e", $lineErrors)
                 );
             }
         }
@@ -1088,8 +1128,8 @@ abstract class InvoiceBase implements \JsonSerializable {
             if (!empty($acErrors)) {
                 $label = $ac->isCharge() ? 'Majoration' : 'Remise';
                 $errors = array_merge(
-                        $errors,
-                        array_map(fn($e) => "{$label} " . ($index + 1) . ": $e", $acErrors)
+                    $errors,
+                    array_map(fn($e) => "{$label} " . ($index + 1) . ": $e", $acErrors)
                 );
             }
         }
@@ -1104,8 +1144,8 @@ abstract class InvoiceBase implements \JsonSerializable {
             $paymentErrors = $this->paymentInfo->validate();
             if (!empty($paymentErrors)) {
                 $errors = array_merge(
-                        $errors,
-                        array_map(fn($e) => "Paiement: $e", $paymentErrors)
+                    $errors,
+                    array_map(fn($e) => "Paiement: $e", $paymentErrors)
                 );
             }
         }
@@ -1115,8 +1155,8 @@ abstract class InvoiceBase implements \JsonSerializable {
             $docErrors = $doc->validate();
             if (!empty($docErrors)) {
                 $errors = array_merge(
-                        $errors,
-                        array_map(fn($e) => 'Document ' . ($index + 1) . ": $e", $docErrors)
+                    $errors,
+                    array_map(fn($e) => 'Document ' . ($index + 1) . ": $e", $docErrors)
                 );
             }
         }
@@ -1149,7 +1189,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      *
      * @return mixed
      */
-    public function jsonSerialize(): mixed {
+    public function jsonSerialize(): mixed
+    {
         return $this->toArray();
     }
 
@@ -1162,7 +1203,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      *
      * @return array<string, mixed>
      */
-    public function toArray(): array {
+    public function toArray(): array
+    {
         return [
             'invoiceNumber' => $this->invoiceNumber,
             'issueDate' => $this->issueDate,
@@ -1180,12 +1222,12 @@ abstract class InvoiceBase implements \JsonSerializable {
             'buyerAccountingReference' => $this->buyerAccountingReference,
             'invoiceNote' => $this->invoiceNote,
             'invoicePeriod' => ($this->invoicePeriodStartDate !== null || $this->invoicePeriodEndDate !== null) ? [
-        'startDate' => $this->invoicePeriodStartDate,
-        'endDate' => $this->invoicePeriodEndDate,
+                'startDate' => $this->invoicePeriodStartDate,
+                'endDate' => $this->invoicePeriodEndDate,
             ] : null,
             'precedingInvoice' => $this->precedingInvoiceNumber !== null ? [
-        'number' => $this->precedingInvoiceNumber,
-        'issueDate' => $this->precedingInvoiceDate,
+                'number' => $this->precedingInvoiceNumber,
+                'issueDate' => $this->precedingInvoiceDate,
             ] : null,
             'seller' => isset($this->seller) ? $this->seller->toArray() : null,
             'buyer' => isset($this->buyer) ? $this->buyer->toArray() : null,
@@ -1209,8 +1251,28 @@ abstract class InvoiceBase implements \JsonSerializable {
                 'filename' => $doc->getFilename(),
                 'mimeType' => $doc->getMimeType(),
                 'description' => $doc->getDescription(),
-                    ], $this->attachedDocuments),
+            ], $this->attachedDocuments),
         ];
+    }
+
+    /**
+     * Restaure les totaux déclarés dans le XML comme valeurs actives de la facture.
+     *
+     * Appelé en mode lenient quand des écarts sont détectés entre les totaux
+     * déclarés par l'émetteur et les totaux recalculés depuis les lignes.
+     * L'objet retourné reflète alors ce que l'émetteur a déclaré, pas le recalcul.
+     */
+    public function restoreImportedTotals(): void
+    {
+        if ($this->importedTotals === null) {
+            return;
+        }
+        $this->taxExclusiveAmount = $this->importedTotals['taxExclusive'];
+        $this->taxInclusiveAmount = $this->importedTotals['taxInclusive'];
+        $this->totalVatAmount = $this->importedTotals['taxAmount'];
+        $this->sumOfLineNetAmounts = $this->importedTotals['lineExtension'];
+        $this->payableAmount = $this->importedTotals['payable'];
+        $this->prepaidAmount = $this->importedTotals['prepaid'];
     }
 
     // =========================================================================
@@ -1221,7 +1283,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le numéro de facture (BT-1)
      * @return string
      */
-    public function getInvoiceNumber(): string {
+    public function getInvoiceNumber(): string
+    {
         return $this->invoiceNumber;
     }
 
@@ -1229,7 +1292,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la date d'émission YYYY-MM-DD (BT-2)
      * @return string
      */
-    public function getIssueDate(): string {
+    public function getIssueDate(): string
+    {
         return $this->issueDate;
     }
 
@@ -1237,7 +1301,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la date d'échéance YYYY-MM-DD (BT-9), ou null si non définie
      * @return string|null
      */
-    public function getDueDate(): ?string {
+    public function getDueDate(): ?string
+    {
         return $this->dueDate;
     }
 
@@ -1245,7 +1310,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la date de livraison YYYY-MM-DD (BT-72), ou null si non définie
      * @return string|null
      */
-    public function getDeliveryDate(): ?string {
+    public function getDeliveryDate(): ?string
+    {
         return $this->deliveryDate;
     }
 
@@ -1253,7 +1319,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le code type de facture UNCL1001 (BT-3)
      * @return string
      */
-    public function getInvoiceTypeCode(): string {
+    public function getInvoiceTypeCode(): string
+    {
         return $this->invoiceTypeCode;
     }
 
@@ -1261,7 +1328,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le code devise ISO 4217 (BT-5)
      * @return string
      */
-    public function getDocumentCurrencyCode(): string {
+    public function getDocumentCurrencyCode(): string
+    {
         return $this->documentCurrencyCode;
     }
 
@@ -1269,7 +1337,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence acheteur (BT-10), ou null si non définie
      * @return string|null
      */
-    public function getBuyerReference(): ?string {
+    public function getBuyerReference(): ?string
+    {
         return $this->buyerReference;
     }
 
@@ -1277,7 +1346,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence du bon de commande acheteur (BT-13), ou null
      * @return string|null
      */
-    public function getPurchaseOrderReference(): ?string {
+    public function getPurchaseOrderReference(): ?string
+    {
         return $this->purchaseOrderReference;
     }
 
@@ -1285,7 +1355,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence de l'ordre de vente vendeur (BT-14), ou null
      * @return string|null
      */
-    public function getSalesOrderReference(): ?string {
+    public function getSalesOrderReference(): ?string
+    {
         return $this->salesOrderReference;
     }
 
@@ -1293,7 +1364,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence du contrat (BT-12), ou null
      * @return string|null
      */
-    public function getContractReference(): ?string {
+    public function getContractReference(): ?string
+    {
         return $this->contractReference;
     }
 
@@ -1301,7 +1373,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence de l'avis de réception (BT-15), ou null
      * @return string|null
      */
-    public function getReceivingAdviceReference(): ?string {
+    public function getReceivingAdviceReference(): ?string
+    {
         return $this->receivingAdviceReference;
     }
 
@@ -1309,7 +1382,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence de l'avis d'expédition (BT-16), ou null
      * @return string|null
      */
-    public function getDespatchAdviceReference(): ?string {
+    public function getDespatchAdviceReference(): ?string
+    {
         return $this->despatchAdviceReference;
     }
 
@@ -1317,7 +1391,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence de projet (BT-11), ou null
      * @return string|null
      */
-    public function getProjectReference(): ?string {
+    public function getProjectReference(): ?string
+    {
         return $this->projectReference;
     }
 
@@ -1325,7 +1400,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la référence comptable acheteur en-tête (BT-19), ou null
      * @return string|null
      */
-    public function getBuyerAccountingReference(): ?string {
+    public function getBuyerAccountingReference(): ?string
+    {
         return $this->buyerAccountingReference;
     }
 
@@ -1333,7 +1409,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la note de facture libre (BT-22), ou null
      * @return string|null
      */
-    public function getInvoiceNote(): ?string {
+    public function getInvoiceNote(): ?string
+    {
         return $this->invoiceNote;
     }
 
@@ -1341,7 +1418,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le numéro de la facture précédente référencée (BT-25), ou null
      * @return string|null
      */
-    public function getPrecedingInvoiceNumber(): ?string {
+    public function getPrecedingInvoiceNumber(): ?string
+    {
         return $this->precedingInvoiceNumber;
     }
 
@@ -1349,7 +1427,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la date de la facture précédente référencée (BT-26), ou null
      * @return string|null
      */
-    public function getPrecedingInvoiceDate(): ?string {
+    public function getPrecedingInvoiceDate(): ?string
+    {
         return $this->precedingInvoiceDate;
     }
 
@@ -1357,7 +1436,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le fournisseur / vendeur (BG-4)
      * @return Party
      */
-    public function getSeller(): Party {
+    public function getSeller(): Party
+    {
         return $this->seller;
     }
 
@@ -1365,7 +1445,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le client / acheteur (BG-7)
      * @return Party
      */
-    public function getBuyer(): Party {
+    public function getBuyer(): Party
+    {
         return $this->buyer;
     }
 
@@ -1373,7 +1454,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la liste des lignes de facture (BG-25)
      * @return array<InvoiceLine>
      */
-    public function getInvoiceLines(): array {
+    public function getInvoiceLines(): array
+    {
         return $this->invoiceLines;
     }
 
@@ -1381,7 +1463,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la liste des remises et majorations au niveau document (BG-20/BG-21)
      * @return array<AllowanceCharge>
      */
-    public function getAllowanceCharges(): array {
+    public function getAllowanceCharges(): array
+    {
         return $this->allowanceCharges;
     }
 
@@ -1389,7 +1472,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne les informations de paiement (BG-16, BG-17), ou null
      * @return PaymentInfo|null
      */
-    public function getPaymentInfo(): ?PaymentInfo {
+    public function getPaymentInfo(): ?PaymentInfo
+    {
         return $this->paymentInfo;
     }
 
@@ -1397,7 +1481,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne les conditions de paiement (BT-20), ou null
      * @return string|null
      */
-    public function getPaymentTerms(): ?string {
+    public function getPaymentTerms(): ?string
+    {
         return $this->paymentTerms;
     }
 
@@ -1405,7 +1490,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la liste des documents joints (BG-24)
      * @return array<AttachedDocument>
      */
-    public function getAttachedDocuments(): array {
+    public function getAttachedDocuments(): array
+    {
         return $this->attachedDocuments;
     }
 
@@ -1413,7 +1499,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la somme des montants nets de lignes (BT-106)
      * @return float
      */
-    public function getSumOfLineNetAmounts(): float {
+    public function getSumOfLineNetAmounts(): float
+    {
         return $this->sumOfLineNetAmounts;
     }
 
@@ -1421,7 +1508,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la somme des remises au niveau document (BT-107)
      * @return float
      */
-    public function getSumOfAllowances(): float {
+    public function getSumOfAllowances(): float
+    {
         return $this->sumOfAllowances;
     }
 
@@ -1429,7 +1517,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la somme des majorations au niveau document (BT-108)
      * @return float
      */
-    public function getSumOfCharges(): float {
+    public function getSumOfCharges(): float
+    {
         return $this->sumOfCharges;
     }
 
@@ -1437,7 +1526,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le montant net total hors taxes (BT-109)
      * @return float
      */
-    public function getTaxExclusiveAmount(): float {
+    public function getTaxExclusiveAmount(): float
+    {
         return $this->taxExclusiveAmount;
     }
 
@@ -1445,7 +1535,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le montant total TVA comprise (BT-112)
      * @return float
      */
-    public function getTaxInclusiveAmount(): float {
+    public function getTaxInclusiveAmount(): float
+    {
         return $this->taxInclusiveAmount;
     }
 
@@ -1453,7 +1544,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne le montant à payer (BT-115)
      * @return float
      */
-    public function getPayableAmount(): float {
+    public function getPayableAmount(): float
+    {
         return $this->payableAmount;
     }
 
@@ -1462,11 +1554,13 @@ abstract class InvoiceBase implements \JsonSerializable {
      *
      * @return array<string, VatBreakdown> Clé : "{catégorie}_{taux}" ex : "S_21"
      */
-    public function getVatBreakdown(): array {
+    public function getVatBreakdown(): array
+    {
         return $this->vatBreakdown;
     }
 
-    public function getTotalVatAmount(): float {
+    public function getTotalVatAmount(): float
+    {
         return $this->totalVatAmount;
     }
 
@@ -1474,7 +1568,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la date de début de la période de facturation (BT-73), ou null
      * @return string|null
      */
-    public function getInvoicePeriodStartDate(): ?string {
+    public function getInvoicePeriodStartDate(): ?string
+    {
         return $this->invoicePeriodStartDate;
     }
 
@@ -1482,7 +1577,8 @@ abstract class InvoiceBase implements \JsonSerializable {
      * Retourne la date de fin de la période de facturation (BT-74), ou null
      * @return string|null
      */
-    public function getInvoicePeriodEndDate(): ?string {
+    public function getInvoicePeriodEndDate(): ?string
+    {
         return $this->invoicePeriodEndDate;
     }
 }

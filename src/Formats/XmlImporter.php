@@ -148,8 +148,12 @@ class XmlImporter
             // Comparaison totaux déclarés vs recalculés
             $warnings = $invoice->checkImportedTotals();
 
-            // Lance l'exception si anomalies ou écarts détectés
-            // La facture reste accessible via $e->getInvoice()
+            // Si écarts détectés : restaurer les valeurs déclarées par l'émetteur
+            // car en mode réception, ce sont ses chiffres qui font foi
+            if (!empty($warnings)) {
+                $invoice->restoreImportedTotals();
+            }
+
             if (!empty($warnings) || !empty($anomalies)) {
                 throw new ImportWarningException($invoice, $warnings, $anomalies);
             }
