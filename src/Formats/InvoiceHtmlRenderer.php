@@ -469,7 +469,7 @@ class InvoiceHtmlRenderer
 
             // Colonne droite — QR seul, centré verticalement
             if ($qrUrl !== null) {
-                $html .= '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">';
+                $html .= '<div style="flex:0 0 170px;display:flex;flex-direction:column;align-items:center;justify-content:center">';
                 $html .= '<img src="' . $this->e($qrUrl) . '" alt="QR code paiement" style="width:150px;height:150px;display:block">';
                 $html .= '<div style="font-size:10px;color:var(--pep-muted);letter-spacing:.5px;text-transform:uppercase;margin-top:8px;text-align:center">Scannez pour payer</div>';
                 $html .= '</div>';
@@ -745,8 +745,8 @@ class InvoiceHtmlRenderer
 /* Paiement */
 .pep-payment{margin-top:40px;padding-top:24px;border-top:1px solid var(--pep-rule);
   display:flex;flex-direction:row;gap:40px;align-items:flex-start;}
-.pep-payment-left{flex:0 0 auto;max-width:420px;}
-.pep-payment-with-qr .pep-payment-left{max-width:360px;}
+.pep-payment-left{flex:1 1 auto;min-width:0;}
+.pep-payment-with-qr .pep-payment-left{flex:1 1 auto;}
 .pep-pay-block{background:var(--pep-bg-alt);padding:20px 24px;}
 .pep-pay-label{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
   color:var(--pep-muted);margin-bottom:4px;margin-top:12px;}
