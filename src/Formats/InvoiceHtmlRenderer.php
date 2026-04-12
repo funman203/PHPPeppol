@@ -470,7 +470,10 @@ class InvoiceHtmlRenderer
                 if ($payment->getPaymentReference()) {
                     $html .= $this->payRow($l('pay_ref'), $payment->getPaymentReference());
                 }
-                $html .= $this->payRow($l('pay_code'), $payment->getPaymentMeansCode());
+                $code = $payment->getPaymentMeansCode();
+                $codeLabel = \Peppol\Core\InvoiceConstants::PAYMENT_MEANS_CODES[$code]
+                    ?? $code;
+                $html .= $this->payRow($l('pay_code'), $code . ' — ' . $codeLabel);
                 $html .= '</div>';
             }
 
