@@ -576,7 +576,7 @@ class InvoiceHtmlRenderer
     private function metaRow(string $label, string $value, string $valueAttr = ''): string
     {
         return '<div class="pep-meta-row">'
-            . '<span class="pep-meta-label">' . $this->e($label) . '</span>'
+            . '<span class="pep-meta-label">' . $label . '</span>'
             . '<span class="pep-meta-value" ' . $valueAttr . '>' . $value . '</span>'
             . '</div>';
     }
@@ -584,7 +584,7 @@ class InvoiceHtmlRenderer
     private function refCell(string $label, ?string $value): string
     {
         return '<div class="pep-ref-cell">'
-            . '<div class="pep-ref-label">' . $this->e($label) . '</div>'
+            . '<div class="pep-ref-label">' . $label . '</div>'
             . '<div class="pep-ref-value">' . $this->e($value ?? '—') . '</div>'
             . '</div>';
     }
@@ -592,14 +592,14 @@ class InvoiceHtmlRenderer
     private function amountRow(string $label, string $value, string $extraClass = ''): string
     {
         return '<div class="pep-amount-row ' . $extraClass . '">'
-            . '<span class="pep-amount-label">' . $this->e($label) . '</span>'
+            . '<span class="pep-amount-label">' . $label . '</span>'
             . '<span class="pep-amount-value pep-mono">' . $value . '</span>'
             . '</div>';
     }
 
     private function payRow(string $label, string $value): string
     {
-        return '<div class="pep-pay-label">' . $this->e($label) . '</div>'
+        return '<div class="pep-pay-label">' . $label . '</div>'
             . '<div class="pep-pay-value pep-mono">' . $this->e($value) . '</div>';
     }
 
