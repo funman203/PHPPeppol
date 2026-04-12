@@ -805,6 +805,14 @@ class XmlImporter
                 null,
                 $lineNode
             );
+
+error_log(sprintf(
+    'Ligne %s — declared=%.10f calculated=%.10f diff=%.10f',
+    $lineId,
+    $declaredLineAmount,
+    $line->getLineAmount(),
+    abs($declaredLineAmount - $line->getLineAmount())
+));
             if ($declaredLineAmount !== 0.0
                 && abs($declaredLineAmount - $line->getLineAmount()) > 0.005
                 && round($declaredLineAmount, 2) !== round($line->getLineAmount(), 2)
