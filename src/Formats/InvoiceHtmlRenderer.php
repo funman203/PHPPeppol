@@ -485,18 +485,40 @@ class InvoiceHtmlRenderer
             if (!empty($docs)) {
                 $html .= '<div style="margin-top:32px">';
                 $html .= '<div class="pep-section-title">' . $l('attachments') . '</div>';
-                $html .= '<div class="pep-refs-grid">';
                 foreach ($docs as $doc) {
-                    $html .= '<div class="pep-ref-cell">';
-                    $html .= '<div class="pep-ref-label">' . $this->e($doc->getMimeType()) . '</div>';
-                    $html .= '<div class="pep-ref-value">📎 ' . $this->e($doc->getFilename()) . '</div>';
+                    $html .= '<div class="pep-attachment-block">';
+
+                    // En-tête de la pièce jointe
+                    $html .= '<div class="pep-attachment-header">';
+                    $html .= '<span class="pep-attachment-icon">📎</span>';
+                    $html .= '<span class="pep-attachment-name">' . $this->e($doc->getFilename()) . '</span>';
                     if ($doc->getDescription()) {
-                        $html .= '<div class="pep-muted" style="font-size:12px;margin-top:3px">'
-                            . $this->e($doc->getDescription()) . '</div>';
+                        $html .= '<span class="pep-muted" style="font-size:12px;margin-left:12px">'
+                            . $this->e($doc->getDescription()) . '</span>';
                     }
+                    // Lien de téléchargement toujours disponible
+                    $dataUri = 'data:' . $doc->getMimeType() . ';base64,' . base64_encode($doc->getContent());
+                    $html .= '<a class="pep-attachment-dl" href="' . $dataUri . '" download="'
+                        . $this->e($doc->getFilename()) . '">⬇ Télécharger</a>';
                     $html .= '</div>';
+
+                    // Prévisualisation selon le type MIME
+                    if ($doc->getMimeType() === 'application/pdf') {
+                        $html .= '<iframe class="pep-attachment-preview" src="' . $dataUri . '" '
+                            . 'type="application/pdf"></iframe>';
+                    } elseif (str_starts_with($doc->getMimeType(), 'image/')) {
+                        $html .= '<img class="pep-attachment-preview-img" src="' . $dataUri . '" '
+                            . 'alt="' . $this->e($doc->getFilename()) . '">';
+                    } else {
+                        // CSV et autres — juste le lien de téléchargement, pas de preview
+                        $html .= '<div class="pep-attachment-noprev pep-muted">'
+                            . 'Aperçu non disponible pour ce type de fichier ('
+                            . $this->e($doc->getMimeType()) . ')</div>';
+                    }
+
+                    $html .= '</div>'; // .pep-attachment-block
                 }
-                $html .= '</div></div>';
+                $html .= '</div>';
             }
         }
 
@@ -763,9 +785,23 @@ class InvoiceHtmlRenderer
 .pep-strong{font-weight:500;}
 .pep-accent{color:var(--pep-accent);}
 .pep-mono{font-variant-numeric:tabular-nums;}
+.pep-attachment-block{margin-bottom:24px;border:1px solid var(--pep-rule);}
+.pep-attachment-header{display:flex;align-items:center;gap:8px;padding:12px 16px;
+  background:var(--pep-bg-alt);border-bottom:1px solid var(--pep-rule);}
+.pep-attachment-icon{font-size:16px;}
+.pep-attachment-name{font-weight:500;font-size:13px;}
+.pep-attachment-dl{margin-left:auto;font-size:11px;font-weight:500;
+  color:var(--pep-accent);text-decoration:none;padding:4px 10px;
+  border:1px solid var(--pep-accent);border-radius:2px;white-space:nowrap;}
+.pep-attachment-dl:hover{background:var(--pep-accent);color:var(--pep-white);}
+.pep-attachment-preview{width:100%;height:600px;border:none;display:block;}
+.pep-attachment-preview-img{width:100%;height:auto;display:block;}
+.pep-attachment-noprev{padding:20px 16px;font-size:12.5px;}
 @media print{
   .pep-doc{box-shadow:none;border-top:3px solid var(--pep-accent);}
   .pep-inner{padding:32px 40px;}
+  .pep-attachment-preview{display:none;}
+  .pep-attachment-dl{display:none;}
 }';
     }
 }
