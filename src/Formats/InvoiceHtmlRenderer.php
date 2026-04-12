@@ -504,8 +504,16 @@ class InvoiceHtmlRenderer
 
                     // Prévisualisation selon le type MIME
                     if ($doc->getMimeType() === 'application/pdf') {
-                        $html .= '<iframe class="pep-attachment-preview" src="' . $dataUri . '" '
-                            . 'type="application/pdf"></iframe>';
+                        $base64 = base64_encode($doc->getContent());
+                        $html .= '<div class="pep-attachment-noprev">';
+                        $html .= '<button class="pep-attachment-view" onclick="'
+                            . 'var b=atob(\'' . $base64 . '\');'
+                            . 'var a=new Uint8Array(b.length);'
+                            . 'for(var i=0;i<b.length;i++){a[i]=b.charCodeAt(i);}'
+                            . 'var blob=new Blob([a],{type:\'application/pdf\'});'
+                            . 'window.open(URL.createObjectURL(blob));'
+                            . '">👁 Ouvrir le PDF</button>';
+                        $html .= '</div>';
                     } elseif (str_starts_with($doc->getMimeType(), 'image/')) {
                         $html .= '<img class="pep-attachment-preview-img" src="' . $dataUri . '" '
                             . 'alt="' . $this->e($doc->getFilename()) . '">';
@@ -797,6 +805,10 @@ class InvoiceHtmlRenderer
 .pep-attachment-preview{width:100%;height:600px;border:none;display:block;}
 .pep-attachment-preview-img{width:100%;height:auto;display:block;}
 .pep-attachment-noprev{padding:20px 16px;font-size:12.5px;}
+.pep-attachment-view{cursor:pointer;font-size:12px;font-weight:500;
+  color:var(--pep-accent);background:none;border:1px solid var(--pep-accent);
+  padding:6px 14px;border-radius:2px;margin:16px;}
+.pep-attachment-view:hover{background:var(--pep-accent);color:var(--pep-white);}
 @media print{
   .pep-doc{box-shadow:none;border-top:3px solid var(--pep-accent);}
   .pep-inner{padding:32px 40px;}
