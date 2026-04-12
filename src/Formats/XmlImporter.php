@@ -865,6 +865,19 @@ class XmlImporter
                 }
             }
 
+            // BT-128 — Identifiant objet de ligne (DocumentReference, code 130)
+            $lineDocRefId = self::getXPathValue($xpath, 'cac:DocumentReference/cbc:ID', null, $lineNode);
+            $lineDocRefType = self::getXPathValue($xpath, 'cac:DocumentReference/cbc:DocumentTypeCode', null, $lineNode);
+            if ($lineDocRefId !== null && $lineDocRefType === '130') {
+                $line->setInvoicedObjectIdentifier($lineDocRefId);
+            } elseif ($lineDocRefId !== null) {
+                $anomalies[] = sprintf(
+                    'Ligne %s — DocumentReference : code type « %s » invalide (130 attendu)',
+                    $lineId, $lineDocRefType ?? '?'
+                );
+            }
+
+
             // BT-155 — Référence article vendeur
             $sellerItemId = self::getXPathValue($xpath, 'cac:Item/cac:SellersItemIdentification/cbc:ID', null, $lineNode);
             if ($sellerItemId !== null) {
@@ -955,6 +968,7 @@ class XmlImporter
                 'AllowanceCharge',
                 'Item',
                 'Price',
+                'DocumentReference',
             ];
             foreach ($lineNode->childNodes as $child) {
                 if ($child->nodeType !== XML_ELEMENT_NODE) {

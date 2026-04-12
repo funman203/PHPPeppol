@@ -721,6 +721,17 @@ class XmlExporter
                 $invoiceLine->appendChild($orderLineRef);
             }
 
+            // BT-128 — Identifiant objet de ligne
+            if ($line->getInvoicedObjectIdentifier()) {
+                $docRef = $xml->createElementNS(self::NS_CAC ?? 
+                    'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                    'cac:DocumentReference'
+                 );
+                $this->addElement($xml, $docRef, 'cbc:ID', $line->getInvoicedObjectIdentifier());
+                $this->addElement($xml, $docRef, 'cbc:DocumentTypeCode', '130');
+                $invoiceLine->appendChild($docRef);
+            }		
+
             // BT-127 — Note de ligne
             if ($line->getLineNote()) {
                 $this->addElement($xml, $invoiceLine, 'cbc:Note', $line->getLineNote());

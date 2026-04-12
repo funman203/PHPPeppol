@@ -138,6 +138,12 @@ class InvoiceLine {
      */
     private ?string $standardItemSchemeId = null;
     private ?string $originCountryCode = null;
+
+    /*
+     * #var ?string (BT-128) identifiant objet de ligne
+    */
+    private ?string $invoicedObjectIdentifier = null;
+
     /**
      * Constructeur
      * 
@@ -390,6 +396,12 @@ class InvoiceLine {
         return $this;
     }
 
+    public function setInvoicedObjectIdentifier(string $id): static
+    {
+        $this->invoicedObjectIdentifier = $id;
+        return $this;
+    }
+
     /**
      * Valide la ligne de facture
      * 
@@ -564,4 +576,10 @@ class InvoiceLine {
     public function getOriginCountryCode(): ?string {
         return $this->originCountryCode;
     }
+
+    public function getInvoicedObjectIdentifier(): ?string
+    {
+        return $this->invoicedObjectIdentifier;
+    }
+
 }
