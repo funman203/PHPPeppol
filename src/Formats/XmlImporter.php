@@ -805,11 +805,10 @@ class XmlImporter
                 null,
                 $lineNode
             );
-            if (
-                $declaredLineAmount !== 0.0
-                && abs($declaredLineAmount - $line->getLineAmount()) > 0.01
-            ) {
-                if ($strict) {
+            if ($declaredLineAmount !== 0.0
+                && abs($declaredLineAmount - $line->getLineAmount()) > 0.005
+                && round($declaredLineAmount, 2) !== round($line->getLineAmount(), 2)
+            ) {                if ($strict) {
                     throw new \InvalidArgumentException(sprintf(
                         'Ligne %s : montant déclaré (%.2f) différent du montant recalculé (%.2f). '
                         . 'Vérifier PriceAmount et BaseQuantity.',
