@@ -504,15 +504,13 @@ class InvoiceHtmlRenderer
 
                     // Prévisualisation selon le type MIME
                     if ($doc->getMimeType() === 'application/pdf') {
+                        // getContent() retourne le binaire brut — on l'encode en base64 pour le JS
                         $base64 = base64_encode($doc->getContent());
+                        $mime = $doc->getMimeType();
                         $html .= '<div class="pep-attachment-noprev">';
-                        $html .= '<button class="pep-attachment-view" onclick="'
-                            . 'var b=atob(\'' . $base64 . '\');'
-                            . 'var a=new Uint8Array(b.length);'
-                            . 'for(var i=0;i<b.length;i++){a[i]=b.charCodeAt(i);}'
-                            . 'var blob=new Blob([a],{type:\'application/pdf\'});'
-                            . 'window.open(URL.createObjectURL(blob));'
-                            . '">👁 Ouvrir le PDF</button>';
+                        $html .= '<button class="pep-attachment-view" onclick="openPdf(this)" '
+                            . 'data-pdf="' . $base64 . '" data-mime="' . $this->e($mime) . '">'
+                            . '👁 Ouvrir le PDF</button>';
                         $html .= '</div>';
                     } elseif (str_starts_with($doc->getMimeType(), 'image/')) {
                         $html .= '<img class="pep-attachment-preview-img" src="' . $dataUri . '" '
@@ -546,7 +544,25 @@ class InvoiceHtmlRenderer
         if (!$fullPage) {
             return '<style>' . $this->css() . '</style>' . $html;
         }
-
+        $html .= '<script>
+            function openPdf(btn) {
+                try {
+                    var b64 = btn.getAttribute("data-pdf");
+                    var mime = btn.getAttribute("data-mime");
+                    var binary = atob(b64);
+                    var bytes = new Uint8Array(binary.length);
+                    for (var i = 0; i < binary.length; i++) {
+                        bytes[i] = binary.charCodeAt(i);
+                    }
+                    var blob = new Blob([bytes], { type: mime });
+                    var url = window.URL.createObjectURL(blob);
+                    window.open(url, "_blank");
+                    setTimeout(function() { window.URL.revokeObjectURL(url); }, 10000);
+                } catch(e) {
+                    alert("Impossible d\'ouvrir le PDF : " + e.message);
+                }
+            }
+            </script>';
         return '<!DOCTYPE html><html lang="' . $this->e($this->locale) . '">'
             . '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             . '<title>' . $this->e($invoice->getInvoiceNumber()) . '</title>'
