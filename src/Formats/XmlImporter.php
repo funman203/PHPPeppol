@@ -797,50 +797,7 @@ class XmlImporter
                 continue;
             }
 
-            // BT-131 — Utiliser le montant de ligne déclaré dans le XML
-// car il fait foi selon la spec UBL (notamment si BaseQuantity présent)
-            $declaredLineAmount = (float) self::getXPathValue(
-                $xpath,
-                'cbc:LineExtensionAmount',
-                null,
-                $lineNode
-            );
 
-error_log(sprintf(
-    'Ligne %s — declared=%.10f calculated=%.10f diff=%.10f',
-    $lineId,
-    $declaredLineAmount,
-    $line->getLineAmount(),
-    abs($declaredLineAmount - $line->getLineAmount())
-));
-            if ($declaredLineAmount !== 0.0
-                && abs($declaredLineAmount - $line->getLineAmount()) > 0.005
-                && round($declaredLineAmount, 2) !== round($line->getLineAmount(), 2)
-            ) {                if ($strict) {
-                    throw new \InvalidArgumentException(sprintf(
-                        'Ligne %s : montant déclaré (%.2f) différent du montant recalculé (%.2f). '
-                        . 'Vérifier PriceAmount et BaseQuantity.',
-                        $lineId,
-                        $declaredLineAmount,
-                        $line->getLineAmount()
-                    ));
-                }
-                // Mode lenient : forcer le montant déclaré via Reflection
-                try {
-                    $refProp = new \ReflectionProperty(InvoiceLine::class, 'lineAmount');
-                    $refProp->setAccessible(true);
-                    $refProp->setValue($line, $declaredLineAmount);
-                    $anomalies[] = sprintf(
-                        'Ligne %s : montant recalculé (%.2f) corrigé vers le montant déclaré (%.2f) '
-                        . '— probablement dû à cbc:BaseQuantity',
-                        $lineId,
-                        $line->getLineAmount(),
-                        $declaredLineAmount
-                    );
-                } catch (\Exception $e) {
-                    $anomalies[] = sprintf('Ligne %s : impossible de corriger le montant — %s', $lineId, $e->getMessage());
-                }
-            }
 
             // BT-132 — Référence de ligne de commande
             $orderLineRef = self::getXPathValue($xpath, 'cac:OrderLineReference/cbc:LineID', null, $lineNode);
@@ -880,7 +837,8 @@ error_log(sprintf(
             } elseif ($lineDocRefId !== null) {
                 $anomalies[] = sprintf(
                     'Ligne %s — DocumentReference : code type « %s » invalide (130 attendu)',
-                    $lineId, $lineDocRefType ?? '?'
+                    $lineId,
+                    $lineDocRefType ?? '?'
                 );
             }
 
@@ -960,6 +918,43 @@ error_log(sprintf(
                         $lineId,
                         $e->getMessage()
                     );
+                }
+            }
+
+            // BT-131 — Utiliser le montant de ligne déclaré dans le XML
+// car il fait foi selon la spec UBL (notamment si BaseQuantity présent)
+// Vérification montant déclaré vs recalculé (après chargement BG-28)
+            $declaredLineAmount = (float) self::getXPathValue(
+                $xpath,
+                'cbc:LineExtensionAmount',
+                null,
+                $lineNode
+            );
+            if (
+                $declaredLineAmount !== 0.0
+                && round($declaredLineAmount, 2) !== round($line->getLineAmount(), 2)
+            ) {
+                if ($strict) {
+                    throw new \InvalidArgumentException(sprintf(
+                        'Ligne %s : montant déclaré (%.2f) différent du montant recalculé (%.2f).',
+                        $lineId,
+                        $declaredLineAmount,
+                        $line->getLineAmount()
+                    ));
+                }
+                $calculatedAmount = $line->getLineAmount(); // capturer AVANT correction
+                try {
+                    $refProp = new \ReflectionProperty(InvoiceLine::class, 'lineAmount');
+                    $refProp->setAccessible(true);
+                    $refProp->setValue($line, $declaredLineAmount);
+                    $anomalies[] = sprintf(
+                        'Ligne %s : montant recalculé (%.2f) corrigé vers le montant déclaré (%.2f)',
+                        $lineId,
+                        $calculatedAmount,
+                        $declaredLineAmount
+                    );
+                } catch (\Exception $e) {
+                    $anomalies[] = sprintf('Ligne %s : impossible de corriger le montant — %s', $lineId, $e->getMessage());
                 }
             }
 
