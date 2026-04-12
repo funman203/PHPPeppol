@@ -497,19 +497,19 @@ class InvoiceHtmlRenderer
                             . $this->e($doc->getDescription()) . '</span>';
                     }
                     // Lien de téléchargement toujours disponible
-                    $dataUri = 'data:' . $doc->getMimeType() . ';base64,' . base64_encode($doc->getContent());
+                    $dataUri = 'data:' . $doc->getMimeType() . ';base64,' . $doc->getContent();
                     $html .= '<a class="pep-attachment-dl" href="' . $dataUri . '" download="'
                         . $this->e($doc->getFilename()) . '">⬇ Télécharger</a>';
                     $html .= '</div>';
 
                     // Prévisualisation selon le type MIME
                     if ($doc->getMimeType() === 'application/pdf') {
-                        // getContent() retourne le binaire brut — on l'encode en base64 pour le JS
-                        $base64 = base64_encode($doc->getContent());
-                        $mime = $doc->getMimeType();
+                        $base64 = $doc->getContent();
                         $html .= '<div class="pep-attachment-noprev">';
-                        $html .= '<button class="pep-attachment-view" onclick="openPdf(this)" '
-                            . 'data-pdf="' . $base64 . '" data-mime="' . $this->e($mime) . '">'
+                        $html .= '<button class="pep-attachment-view" '
+                            . 'data-pdf="' . $base64 . '" '
+                            . 'data-mime="application/pdf" '
+                            . 'onclick="pepOpenPdf(this)">'
                             . '👁 Ouvrir le PDF</button>';
                         $html .= '</div>';
                     } elseif (str_starts_with($doc->getMimeType(), 'image/')) {
@@ -538,7 +538,31 @@ class InvoiceHtmlRenderer
         $html .= '<div class="pep-footer-legal">' . $this->e(implode(' · ', $footerLeft)) . '</div>';
         $html .= '<div>' . $l('generated') . ' ' . date('d/m/Y') . ' ' . $l('at') . ' ' . date('H:i') . ' · Peppol UBL 2.1</div>';
         $html .= '</div>';
-
+        $html .= '<script>
+            function pepOpenPdf(btn) {
+                var b64 = btn.getAttribute("data-pdf");
+                var mime = btn.getAttribute("data-mime");
+                var byteChars = atob(b64);
+                var byteArr = new Uint8Array(byteChars.length);
+                for (var i = 0; i < byteChars.length; i++) {
+                    byteArr[i] = byteChars.charCodeAt(i);
+                }
+                var blob = new Blob([byteArr], { type: mime });
+                var url = (window.URL || window.webkitURL).createObjectURL(blob);
+                var win = window.open(url, "_blank");
+                if (!win) {
+                    // Popup bloqué — fallback lien direct
+                    var a = document.createElement("a");
+                    a.href = url;
+                    a.download = btn.closest(".pep-attachment-block")
+                        .querySelector(".pep-attachment-name").textContent;
+                    a.click();
+                }
+                setTimeout(function() {
+                    (window.URL || window.webkitURL).revokeObjectURL(url);
+                }, 30000);
+            }
+            </script>';
         $html .= '</div></div>'; // .pep-inner / .pep-doc
 
         if (!$fullPage) {
