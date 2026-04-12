@@ -728,7 +728,7 @@ class XmlImporter
             $lineId = self::getXPathValue($xpath, 'cbc:ID', null, $lineNode);
             $lineName = self::getXPathValue($xpath, 'cac:Item/cbc:Name', null, $lineNode);
 
-            if (!$lineId || !$lineName) {
+            if ($lineId === null || $lineId === '' || !$lineName) {
                 continue;
             }
 
