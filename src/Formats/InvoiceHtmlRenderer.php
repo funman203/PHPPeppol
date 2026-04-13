@@ -904,4 +904,118 @@ class InvoiceHtmlRenderer
   .pep-attachment-dl{display:none;}
 }';
     }
+    /**
+     * Génère un bloc HTML d'avertissements d'import à afficher avant la facture
+     *
+     * Affiche de façon lisible les warnings (écarts de totaux) et les anomalies
+     * (éléments non reconnus, données corrigées) détectés lors de l'import en
+     * mode lenient. Retourne une chaîne vide si les deux tableaux sont vides.
+     *
+     * @param array<string, array{declared: float, calculated: float, diff: float}> $warnings
+     *        Écarts de totaux indexés par clé ('taxExclusive', 'taxInclusive', 'taxAmount')
+     * @param array<int, string> $anomalies
+     *        Messages d'anomalies détectées lors de l'import
+     * @return string Fragment HTML (vide si aucun avertissement)
+     */
+    public function renderImportWarnings(array $warnings, array $anomalies): string
+    {
+        if (empty($warnings) && empty($anomalies)) {
+            return '';
+        }
+
+        $warningLabels = [
+            'taxExclusive' => 'Total HT',
+            'taxInclusive' => 'Total TTC',
+            'taxAmount' => 'Total TVA',
+            'lineExtension' => 'Total lignes',
+            'payable' => 'Net à payer',
+        ];
+
+        $html = '<style>' . $this->importWarningCss() . '</style>';
+        $html .= '<div class="pep-import-warnings">';
+        $html .= '<div class="pep-iw-header">';
+        $html .= '<span class="pep-iw-icon">⚠</span>';
+        $html .= '<span class="pep-iw-title">Avertissements d\'import</span>';
+        $html .= '<span class="pep-iw-subtitle">Cette facture a été importée en mode tolérant. '
+            . 'Les données ci-dessous ont été détectées comme potentiellement incorrectes.</span>';
+        $html .= '</div>';
+
+        if (!empty($warnings)) {
+            $html .= '<div class="pep-iw-section">';
+            $html .= '<div class="pep-iw-section-title">Écarts de totaux</div>';
+            $html .= '<table class="pep-iw-table">';
+            $html .= '<thead><tr>'
+                . '<th>Champ</th>'
+                . '<th class="r">Déclaré par l\'émetteur</th>'
+                . '<th class="r">Recalculé</th>'
+                . '<th class="r">Écart</th>'
+                . '</tr></thead><tbody>';
+            foreach ($warnings as $key => $w) {
+                $label = $warningLabels[$key] ?? $key;
+                $html .= '<tr>'
+                    . '<td>' . $this->e($label) . '</td>'
+                    . '<td class="r pep-iw-declared">'
+                    . number_format($w['declared'], 2, ',', ' ') . '</td>'
+                    . '<td class="r pep-iw-calculated">'
+                    . number_format($w['calculated'], 2, ',', ' ') . '</td>'
+                    . '<td class="r pep-iw-diff">Δ '
+                    . number_format($w['diff'], 2, ',', ' ') . '</td>'
+                    . '</tr>';
+            }
+            $html .= '</tbody></table>';
+            $html .= '<div class="pep-iw-note">Les montants affichés dans la facture '
+                . 'sont ceux déclarés par l\'émetteur.</div>';
+            $html .= '</div>';
+        }
+
+        if (!empty($anomalies)) {
+            $html .= '<div class="pep-iw-section">';
+            $html .= '<div class="pep-iw-section-title">Anomalies détectées</div>';
+            $html .= '<ul class="pep-iw-list">';
+            foreach ($anomalies as $anomaly) {
+                $html .= '<li>' . $this->e($anomaly) . '</li>';
+            }
+            $html .= '</ul>';
+            $html .= '</div>';
+        }
+
+        $html .= '</div>';
+        return $html;
+    }
+
+    /**
+     * Retourne le CSS du bloc d'avertissements d'import
+     *
+     * @return string CSS brut (sans balise <style>)
+     */
+    private function importWarningCss(): string
+    {
+        return '
+.pep-import-warnings{font-family:"DM Sans",sans-serif;font-size:13.5px;
+  max-width:1100px;margin:0 auto 24px;border:1px solid #f0a500;
+  border-left:4px solid #f0a500;background:#fffbf0;}
+.pep-iw-header{display:flex;align-items:baseline;gap:10px;
+  padding:14px 20px;border-bottom:1px solid #f0e0a0;background:#fff8e6;}
+.pep-iw-icon{font-size:16px;color:#c07800;}
+.pep-iw-title{font-weight:600;font-size:14px;color:#7a5000;}
+.pep-iw-subtitle{font-size:12px;color:#a07030;margin-left:4px;}
+.pep-iw-section{padding:16px 20px;border-bottom:1px solid #f0e0a0;}
+.pep-iw-section:last-child{border-bottom:none;}
+.pep-iw-section-title{font-weight:600;font-size:11px;letter-spacing:.8px;
+  text-transform:uppercase;color:#a07030;margin-bottom:10px;}
+.pep-iw-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.pep-iw-table th{text-align:left;font-size:10px;font-weight:500;
+  letter-spacing:.6px;text-transform:uppercase;color:#a07030;
+  padding:0 12px 6px 0;border-bottom:1px solid #f0e0a0;}
+.pep-iw-table th.r,.pep-iw-table td.r{text-align:right;}
+.pep-iw-table td{padding:6px 12px 6px 0;border-bottom:1px solid #f8eecc;
+  font-variant-numeric:tabular-nums;}
+.pep-iw-table tr:last-child td{border-bottom:none;}
+.pep-iw-declared{color:#1a1814;font-weight:500;}
+.pep-iw-calculated{color:#6b6560;}
+.pep-iw-diff{color:#c07800;font-weight:500;}
+.pep-iw-note{font-size:11.5px;color:#a07030;font-style:italic;margin-top:10px;}
+.pep-iw-list{margin:0;padding:0 0 0 18px;list-style:disc;}
+.pep-iw-list li{padding:3px 0;font-size:12.5px;color:#5a4010;line-height:1.5;}';
+    }
 }
