@@ -364,7 +364,7 @@ class InvoiceHtmlRenderer
 
             $html .= '<td class="r">' . number_format($line->getQuantity(), 2, ',', ' ') . '</td>';
             $html .= '<td class="pep-muted">' . $this->e($line->getUnitCode()) . '</td>';
-            $html .= '<td class="r">' . $this->fmt($line->getUnitPrice(), $cur) . '</td>';
+            $html .= '<td class="r">' . $this->fmtPrice($line->getUnitPrice(), $cur) . '</td>';
             $html .= '<td class="pep-muted">'
                 . $this->e($line->getVatCategory())
                 . ($line->getVatRate() > 0 ? ' ' . number_format($line->getVatRate(), 0) . '%' : '')
@@ -601,6 +601,8 @@ class InvoiceHtmlRenderer
             . '</body></html>';
     }
 
+
+
     // =========================================================================
     // Helpers HTML
     // =========================================================================
@@ -689,15 +691,58 @@ class InvoiceHtmlRenderer
         );
     }
 
+    /**
+     * Échappe une chaîne pour insertion sécurisée dans le HTML
+     *
+     * Convertit les caractères spéciaux HTML en entités pour prévenir les
+     * injections XSS. Doit être utilisé sur toute valeur provenant des données
+     * de la facture avant insertion dans le HTML généré.
+     *
+     * @param string $s Chaîne à échapper
+     * @return string Chaîne échappée, safe pour insertion dans le HTML
+     */
     private function e(string $s): string
     {
         return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
+    /**
+     * Formate un montant monétaire avec exactement 2 décimales
+     *
+     * À utiliser pour tous les montants exprimés à la centime près :
+     * totaux HT/TTC, montants de TVA, montants de ligne, remises, majorations.
+     *
+     * @param float  $amount   Montant à formater
+     * @param string $currency Code devise ISO 4217 (ex : 'EUR')
+     * @return string Montant formaté (ex : '1 234,50&nbsp;EUR')
+     */
     private function fmt(float $amount, string $currency): string
     {
         return number_format($amount, 2, ',', ' ') . '&nbsp;' . $currency;
     }
+
+    /**
+     * Formate un prix unitaire avec 2 ou 4 décimales selon la précision réelle
+     *
+     * Utilise automatiquement 4 décimales si le prix ne peut pas être exprimé
+     * exactement à 2 décimales. Cela se produit notamment quand l'émetteur
+     * utilise cbc:BaseQuantity pour exprimer un prix par lot (ex : prix pour 2
+     * unités divisé par 2 donne un prix unitaire à 3 décimales).
+     *
+     * Exemples :
+     *   - fmtPrice(3.335, 'EUR')  → '3,3350&nbsp;EUR'  (4 décimales)
+     *   - fmtPrice(14.00, 'EUR')  → '14,00&nbsp;EUR'   (2 décimales)
+     *
+     * @param float  $amount   Prix unitaire à formater
+     * @param string $currency Code devise ISO 4217 (ex : 'EUR')
+     * @return string Prix formaté avec le nombre de décimales approprié
+     */
+    private function fmtPrice(float $amount, string $currency): string
+    {
+        $decimals = (round($amount, 2) != $amount) ? 4 : 2;
+        return number_format($amount, $decimals, ',', ' ') . '&nbsp;' . $currency;
+    }
+
 
     private function fmtDate(?string $date): string
     {
