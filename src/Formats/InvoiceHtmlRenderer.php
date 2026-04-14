@@ -363,7 +363,7 @@ class InvoiceHtmlRenderer
             $html .= '</td>';
 
             $html .= '<td class="r">' . number_format($line->getQuantity(), 2, ',', ' ') . '</td>';
-            $html .= '<td class="pep-muted">' . $this->e($line->getUnitCode()) . '</td>';
+            $html .= '<td class="pep-muted">' . $this->fmtUnit($line->getUnitCode()) . '</td>';
             $html .= '<td class="r">' . $this->fmtPrice($line->getUnitPrice(), $cur) . '</td>';
             $html .= '<td class="pep-muted">'
                 . $this->e($line->getVatCategory())
@@ -754,6 +754,33 @@ class InvoiceHtmlRenderer
             return $this->e($date);
         }
     }
+
+    /**
+     * Retourne l'affichage formaté d'un code unité pour la colonne du tableau
+     *
+     * Format : abréviation courte en gras + libellé complet entre parenthèses
+     * en infobulle (title). Si le code est inconnu, affiche le code brut.
+     *
+     * @param string $unitCode Code unité UN/ECE Rec. 20
+     * @return string HTML formaté
+     */
+    private function fmtUnit(string $unitCode): string
+    {
+        $short = \Peppol\Core\InvoiceConstants::UNIT_CODES_SHORT[$unitCode]
+            ?? $unitCode;
+        $long = \Peppol\Core\InvoiceConstants::UNIT_CODES[$unitCode]
+            ?? null;
+
+        if ($long !== null) {
+            return '<span title="' . $this->e($unitCode . ' — ' . $long) . '">'
+                . $this->e($short) . '</span>';
+        }
+
+        // Code inconnu — afficher tel quel avec indication
+        return '<span title="Code unité non reconnu">'
+            . $this->e($unitCode) . '</span>';
+    }
+
 
     // =========================================================================
     // CSS
