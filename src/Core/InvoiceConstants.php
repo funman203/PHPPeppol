@@ -123,47 +123,366 @@ final class InvoiceConstants
      */
     public const BE_VAT_RATES = [21.0, 12.0, 6.0, 0.0];
     
-    /**
-     * Codes d'unité de mesure selon UN/ECE Recommendation 20
-     * Liste non exhaustive des codes les plus utilisés
-     * @var array<string, string>
-     */
-    public const UNIT_CODES = [
-        'C62' => 'Unité (pièce immatériel)',
-        'H87' => 'Unité (pièce physique)',
-        'HUR' => 'Heure',
-        'DAY' => 'Jour',
-        'MON' => 'Mois',
-        'ANN' => 'Année',
-        'MTR' => 'Mètre',
-        'KMT' => 'Kilomètre',
-        'MTK' => 'Mètre carré',
-        'MTQ' => 'Mètre cube',
-        'LTR' => 'Litre',
-        'KGM' => 'Kilogramme',
-        'TNE' => 'Tonne métrique',
-        'GRM' => 'Gramme',
-        'MGM' => 'Milligramme',
-        'KWH' => 'Kilowatt-heure',
-        'MWH' => 'Mégawatt-heure',
-        'SET' => 'Ensemble',
-        'MIN' => 'Minute',
-        'SEC' => 'Seconde',
-        'WEE' => 'Semaine',
-        'BX' => 'Boîte',
-        'PK' => 'Paquet',
-        'EA' => 'Élément',
-        'PR' => 'Paire',
-        'DZN' => 'Douzaine',
-        'GLL' => 'Gallon',
-        'ONZ' => 'Once',
-        'LBR' => 'Livre (masse)',
-        'FOT' => 'Pied',
-        'INH' => 'Pouce',
-        'YRD' => 'Yard',
-        'SMI' => 'Mile',
-        'ZZ' => 'Unité définie mutuellement (mutually defined)'
-    ];
+/**
+ * Codes d'unité de mesure selon UN/ECE Recommendation 20
+ * Liste complète des codes utilisés dans la facturation électronique
+ * Source : https://unece.org/trade/uncefact/cl-recommendations (Rev. 16, 2021)
+ *
+ * @var array<string, string>
+ */
+public const UNIT_CODES = [
+    // -------------------------------------------------------------------------
+    // Unités génériques / commerce
+    // -------------------------------------------------------------------------
+    'C62' => 'Unité (pièce immatérielle)',
+    'H87' => 'Unité (pièce physique)',
+    'EA'  => 'Élément',
+    'ZZ'  => 'Unité définie mutuellement',
+    'SET' => 'Ensemble',
+    'PR'  => 'Paire',
+    'DZN' => 'Douzaine',
+    'GRO' => 'Grosse (144 unités)',
+    'HGR' => 'Centaine de grammes',
+    'KT'  => 'Kit',
+    'NMP' => 'Nombre de paquets',
+    'OP'  => 'Paquet de deux',
+    'ST'  => 'Feuille',
+    'TU'  => 'Tube',
+    'VI'  => 'Flacon',
+    'VQ'  => 'Cartouche',
+    'WR'  => 'Bobine',
+ 
+    // -------------------------------------------------------------------------
+    // Emballages / conditionnement
+    // -------------------------------------------------------------------------
+    'BX'  => 'Boîte',
+    'PK'  => 'Paquet',
+    'BG'  => 'Sac',
+    'CT'  => 'Carton',
+    'CS'  => 'Caisse',
+    'DR'  => 'Fût / Tonneau',
+    'JR'  => 'Bocal',
+    'BO'  => 'Bouteille',
+    'CL'  => 'Bobine (fil)',
+    'CR'  => 'Caisse (crisse)',
+    'EN'  => 'Enveloppe',
+    'GZ'  => 'Cage',
+    'PX'  => 'Palette',
+    'RO'  => 'Rouleau',
+    'SL'  => 'Bobineau',
+    'TN'  => 'Bidon',
+    'TR'  => 'Bande',
+    'PD'  => 'Coussinet',
+ 
+    // -------------------------------------------------------------------------
+    // Temps
+    // -------------------------------------------------------------------------
+    'SEC' => 'Seconde',
+    'MIN' => 'Minute',
+    'HUR' => 'Heure',
+    'DAY' => 'Jour',
+    'WEE' => 'Semaine',
+    'MON' => 'Mois',
+    'ANN' => 'Année',
+    'QAN' => 'Trimestre',
+    'SAN' => 'Semestre',
+    'DEC' => 'Décennie',
+ 
+    // -------------------------------------------------------------------------
+    // Longueur / distance
+    // -------------------------------------------------------------------------
+    'MMT' => 'Millimètre',
+    'CMT' => 'Centimètre',
+    'DMT' => 'Décimètre',
+    'MTR' => 'Mètre',
+    'KMT' => 'Kilomètre',
+    'INH' => 'Pouce',
+    'FOT' => 'Pied',
+    'YRD' => 'Yard',
+    'SMI' => 'Mile terrestre',
+    'NMI' => 'Mille nautique',
+    'ANG' => 'Angström',
+    'HMT' => 'Hectomètre',
+ 
+    // -------------------------------------------------------------------------
+    // Surface
+    // -------------------------------------------------------------------------
+    'MMK' => 'Millimètre carré',
+    'CMK' => 'Centimètre carré',
+    'DMK' => 'Décimètre carré',
+    'MTK' => 'Mètre carré',
+    'KMK' => 'Kilomètre carré',
+    'HAR' => 'Hectare',
+    'ARE' => 'Are',
+    'INK' => 'Pouce carré',
+    'FTK' => 'Pied carré',
+    'YDK' => 'Yard carré',
+ 
+    // -------------------------------------------------------------------------
+    // Volume / capacité
+    // -------------------------------------------------------------------------
+    'MMQ' => 'Millimètre cube',
+    'CMQ' => 'Centimètre cube',
+    'DMQ' => 'Décimètre cube',
+    'MTQ' => 'Mètre cube',
+    'MLT' => 'Millilitre',
+    'CLT' => 'Centilitre',
+    'DLT' => 'Décilitre',
+    'LTR' => 'Litre',
+    'HLT' => 'Hectolitre',
+    'GLL' => 'Gallon (US)',
+    'QT'  => 'Quart (US)',
+    'PT'  => 'Pinte (US)',
+    'BLL' => 'Baril (pétrole)',
+    'FTQ' => 'Pied cube',
+    'INQ' => 'Pouce cube',
+    'YDQ' => 'Yard cube',
+ 
+    // -------------------------------------------------------------------------
+    // Masse / poids
+    // -------------------------------------------------------------------------
+    'MC'  => 'Microgramme',
+    'MGM' => 'Milligramme',
+    'CGM' => 'Centigramme',
+    'DGM' => 'Décigramme',
+    'GRM' => 'Gramme',
+    'HGM' => 'Hectogramme',
+    'KGM' => 'Kilogramme',
+    'TNE' => 'Tonne métrique',
+    'DTN' => 'Décitonne',
+    'ONZ' => 'Once',
+    'LBR' => 'Livre (avoirdupois)',
+    'STN' => 'Tonne courte (US)',
+    'LTN' => 'Tonne longue (UK)',
+    'CWI' => 'Quintal (UK)',
+    'CWA' => 'Quintal (US)',
+ 
+    // -------------------------------------------------------------------------
+    // Énergie / puissance / électricité
+    // -------------------------------------------------------------------------
+    'WTT' => 'Watt',
+    'KWT' => 'Kilowatt',
+    'MWT' => 'Mégawatt',
+    'GWT' => 'Gigawatt',
+    'WHR' => 'Watt-heure',
+    'KWH' => 'Kilowatt-heure',
+    'MWH' => 'Mégawatt-heure',
+    'GWH' => 'Gigawatt-heure',
+    'JOU' => 'Joule',
+    'KJO' => 'Kilojoule',
+    'MJO' => 'Mégajoule',
+    'GJO' => 'Gigajoule',
+    'BTU' => 'British Thermal Unit',
+    'kcl' => 'Kilocalorie',
+    'AMP' => 'Ampère',
+    'VLT' => 'Volt',
+    'OHM' => 'Ohm',
+    'FAR' => 'Farad',
+    'HTZ' => 'Hertz',
+    'KHZ' => 'Kilohertz',
+    'MHZ' => 'Mégahertz',
+    'GHZ' => 'Gigahertz',
+    'VA'  => 'Volt-ampère',
+    'KVA' => 'Kilovolt-ampère',
+    'MVA' => 'Mégavolt-ampère',
+ 
+    // -------------------------------------------------------------------------
+    // Informatique / données
+    // -------------------------------------------------------------------------
+    'AD'  => 'Octet (byte)',
+    'E34' => 'Kilooctet',
+    'E35' => 'Mégaoctet',
+    'E36' => 'Gigaoctet',
+    'E37' => 'Téraoctet',
+ 
+    // -------------------------------------------------------------------------
+    // Pression / force
+    // -------------------------------------------------------------------------
+    'PAL' => 'Pascal',
+    'KPA' => 'Kilopascal',
+    'MPA' => 'Mégapascal',
+    'BAR' => 'Bar',
+    'MBR' => 'Millibar',
+    'ATM' => 'Atmosphère',
+    'NEW' => 'Newton',
+    'KNS' => 'Kilonewton',
+    'DYN' => 'Dyne',
+ 
+    // -------------------------------------------------------------------------
+    // Température
+    // -------------------------------------------------------------------------
+    'CEL' => 'Degré Celsius',
+    'FAH' => 'Degré Fahrenheit',
+    'KEL' => 'Kelvin',
+ 
+    // -------------------------------------------------------------------------
+    // Vitesse / débit
+    // -------------------------------------------------------------------------
+    'MTS' => 'Mètre par seconde',
+    'KMH' => 'Kilomètre par heure',
+    'KNT' => 'Nœud',
+    'MQS' => 'Mètre cube par seconde',
+    'MQH' => 'Mètre cube par heure',
+    'LTS' => 'Litre par seconde',
+    'LTH' => 'Litre par heure',
+ 
+    // -------------------------------------------------------------------------
+    // Finance / monétaire
+    // -------------------------------------------------------------------------
+    'MON' => 'Mois',   // déjà dans Temps — conservé pour compatibilité
+    'PCT' => 'Pourcentage',
+    'M4'  => 'Point de base (0,01%)',
+ 
+    // -------------------------------------------------------------------------
+    // Divers industriels
+    // -------------------------------------------------------------------------
+    'MTR' => 'Mètre (linéaire)',  // alias
+    'RM'  => 'Rame (papier)',
+    'ROL' => 'Rouleau',
+    'STK' => 'Stick / Bâton',
+    'AV'  => 'Ampoule',
+    'CA'  => 'Boîte de conserve',
+    'NRL' => 'Nombre de rouleaux',
+    'PFL' => 'Paire de gants',
+    'PTN' => 'Portion',
+    'SYR' => 'Seringue',
+ 
+    // -------------------------------------------------------------------------
+    // Services / prestation / facturation numérique
+    // -------------------------------------------------------------------------
+    'E48' => 'Unité de service',
+    'E51' => 'Appel',
+    'E52' => 'Transaction',
+    'E54' => 'Point',
+    'NAR' => 'Nombre d\'articles',
+    'NF'  => 'Message',
+    'NMP' => 'Nombre de paquets',
+    'TP'  => 'Mille feuilles (1 000 feuilles)',
+];
+
+/**
+ * Abréviations courtes des unités de mesure (pour affichage compact)
+ * @var array<string, string>
+ */
+public const UNIT_CODES_SHORT = [
+    'C62' => 'u.',
+    'H87' => 'u.',
+    'EA'  => 'u.',
+    'ZZ'  => 'u.',
+    'SET' => 'ens.',
+    'PR'  => 'paire',
+    'DZN' => 'dz.',
+    'SEC' => 's',
+    'MIN' => 'min',
+    'HUR' => 'h',
+    'DAY' => 'j',
+    'WEE' => 'sem.',
+    'MON' => 'mois',
+    'ANN' => 'an',
+    'QAN' => 'trim.',
+    'SAN' => 'sem.',
+    'MMT' => 'mm',
+    'CMT' => 'cm',
+    'DMT' => 'dm',
+    'MTR' => 'm',
+    'KMT' => 'km',
+    'INH' => 'in',
+    'FOT' => 'ft',
+    'YRD' => 'yd',
+    'SMI' => 'mi',
+    'NMI' => 'nmi',
+    'MMK' => 'mm²',
+    'CMK' => 'cm²',
+    'DMK' => 'dm²',
+    'MTK' => 'm²',
+    'KMK' => 'km²',
+    'HAR' => 'ha',
+    'ARE' => 'a',
+    'MMQ' => 'mm³',
+    'CMQ' => 'cm³',
+    'DMQ' => 'dm³',
+    'MTQ' => 'm³',
+    'MLT' => 'ml',
+    'CLT' => 'cl',
+    'DLT' => 'dl',
+    'LTR' => 'l',
+    'HLT' => 'hl',
+    'GLL' => 'gal',
+    'BLL' => 'bbl',
+    'MC'  => 'µg',
+    'MGM' => 'mg',
+    'GRM' => 'g',
+    'HGM' => 'hg',
+    'KGM' => 'kg',
+    'TNE' => 't',
+    'ONZ' => 'oz',
+    'LBR' => 'lb',
+    'STN' => 't.c.',
+    'LTN' => 't.l.',
+    'WTT' => 'W',
+    'KWT' => 'kW',
+    'MWT' => 'MW',
+    'GWT' => 'GW',
+    'WHR' => 'Wh',
+    'KWH' => 'kWh',
+    'MWH' => 'MWh',
+    'GWH' => 'GWh',
+    'JOU' => 'J',
+    'KJO' => 'kJ',
+    'MJO' => 'MJ',
+    'GJO' => 'GJ',
+    'AMP' => 'A',
+    'VLT' => 'V',
+    'OHM' => 'Ω',
+    'FAR' => 'F',
+    'HTZ' => 'Hz',
+    'KHZ' => 'kHz',
+    'MHZ' => 'MHz',
+    'GHZ' => 'GHz',
+    'VA'  => 'VA',
+    'KVA' => 'kVA',
+    'PAL' => 'Pa',
+    'KPA' => 'kPa',
+    'MPA' => 'MPa',
+    'BAR' => 'bar',
+    'MBR' => 'mbar',
+    'ATM' => 'atm',
+    'NEW' => 'N',
+    'KNS' => 'kN',
+    'CEL' => '°C',
+    'FAH' => '°F',
+    'KEL' => 'K',
+    'MTS' => 'm/s',
+    'KMH' => 'km/h',
+    'KNT' => 'kn',
+    'MQS' => 'm³/s',
+    'MQH' => 'm³/h',
+    'LTS' => 'l/s',
+    'LTH' => 'l/h',
+    'PCT' => '%',
+    'M4'  => 'bp',
+    'AD'  => 'B',
+    'E34' => 'kB',
+    'E35' => 'MB',
+    'E36' => 'GB',
+    'E37' => 'TB',
+    'BX'  => 'boîte',
+    'PK'  => 'pqt',
+    'BG'  => 'sac',
+    'CT'  => 'ctn',
+    'CS'  => 'caisse',
+    'DR'  => 'fût',
+    'RO'  => 'roul.',
+    'ROL' => 'roul.',
+    'RM'  => 'rame',
+    'NAR' => 'nb',
+    'E48' => 'svc',
+    'E51' => 'appel',
+    'E52' => 'transac.',
+    'E54' => 'pt',
+    'NF'  => 'msg',
+];
+
     
     /**
      * Identifiant de personnalisation pour Peppol BIS Billing 3.0
