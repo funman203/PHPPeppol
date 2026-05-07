@@ -1011,7 +1011,7 @@ class XmlImporter
         $taxInclusive = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', '0');
         $prepaid = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PrepaidAmount', '0');
         $payable = (float) self::getXPathValue($xpath, '//cac:LegalMonetaryTotal/cbc:PayableAmount', '0');
-        $taxAmount = (float) self::getXPathValue($xpath, '//cac:TaxTotal/cbc:TaxAmount', '0');
+        $taxAmount = (float) self::getXPathValue($xpath, '/ubl:Invoice/cac:TaxTotal/cbc:TaxAmount', '0');
 
         $invoice->setImportedTotals($lineExtension, $taxExclusive, $taxInclusive, $prepaid, $payable, $taxAmount);
         // Synchronisation du prépaiement pour le calcul correct de payableAmount

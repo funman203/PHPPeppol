@@ -67,7 +67,7 @@ final class InvoiceConstants
         '42' => 'Paiement à un compte bancaire',
         '48' => 'Carte de paiement',
         '49' => 'Prélèvement automatique',
-	'54' => 'Carte de crédit',
+        '54' => 'Carte de crédit',
         '57' => 'Domiciliation européenne (SEPA Direct Debit)',
         '58' => 'Virement SEPA',
         '59' => 'Prélèvement SEPA B2B',
