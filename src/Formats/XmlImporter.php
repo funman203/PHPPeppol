@@ -240,19 +240,19 @@ class XmlImporter
         }
 
         // BT-10 — Référence acheteur
-        $buyerRef = self::getXPathValue($xpath, '//cbc:BuyerReference');
+        $buyerRef = self::getXPathValue($xpath, '/ubl:Invoice/cbc:BuyerReference');
         if ($buyerRef) {
             $invoice->setBuyerReference($buyerRef);
         }
 
         // BT-13 — Référence commande acheteur
-        $orderRef = self::getXPathValue($xpath, '//cac:OrderReference/cbc:ID');
+        $orderRef = self::getXPathValue($xpath, '/ubl:Invoice/cac:OrderReference/cbc:ID');
         if ($orderRef) {
             $invoice->setPurchaseOrderReference($orderRef);
         }
 
         // BT-14 — Référence ordre de vente vendeur
-        $salesOrderRef = self::getXPathValue($xpath, '//cac:OrderReference/cbc:SalesOrderID');
+        $salesOrderRef = self::getXPathValue($xpath, '/ubl:Invoice/cac:OrderReference/cbc:SalesOrderID');
         if ($salesOrderRef) {
             $invoice->setSalesOrderReference($salesOrderRef);
         }
@@ -282,13 +282,13 @@ class XmlImporter
         }
 
         // BT-19 — Référence comptable acheteur
-        $accountingCost = self::getXPathValue($xpath, '//cbc:AccountingCost');
+        $accountingCost = self::getXPathValue($xpath, '/ubl:Invoice/cbc:AccountingCost');
         if ($accountingCost) {
             $invoice->setBuyerAccountingReference($accountingCost);
         }
 
         // BT-22 — Note facture (enfant direct de Invoice, pas dans cac:PaymentTerms)
-        $note = self::getXPathValue($xpath, '/Invoice/cbc:Note');
+        $note = self::getXPathValue($xpath, '/ubl:Invoice/cbc:Note');
         if ($note) {
             $invoice->setInvoiceNote($note);
         }
