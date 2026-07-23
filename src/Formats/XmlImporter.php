@@ -125,8 +125,8 @@ class XmlImporter
 
         // Chargement des données dans l'ordre logique
         self::loadBasicData($invoice, $xpath, $strict, $anomalies);
-        self::loadSeller($invoice, $xpath);
-        self::loadBuyer($invoice, $xpath);
+        self::loadSeller($invoice, $xpath, $strict, $anomalies);
+        self::loadBuyer($invoice, $xpath, $strict, $anomalies);
         self::loadPaymentInfo($invoice, $xpath, $strict, $anomalies);
         self::loadAttachedDocuments($invoice, $xpath);
         self::loadAllowanceCharges($invoice, $xpath, $strict, $anomalies);
@@ -392,7 +392,7 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadSeller(InvoiceBase $invoice, \DOMXPath $xpath): void
+    private static function loadSeller(InvoiceBase $invoice, \DOMXPath $xpath, bool $strict, array &$anomalies): void
     {
         $basePath = '//cac:AccountingSupplierParty/cac:Party';
 
@@ -433,7 +433,16 @@ class XmlImporter
             }
         }
 
-        $seller = new Party($name, $address, $vatId, $companyId, $email, $electronicAddress);
+        try {
+            $seller = new Party($name, $address, $vatId, $companyId, $email, $electronicAddress);
+        } catch (\InvalidArgumentException $e) {
+            if ($strict) {
+                throw $e;
+            }
+            $anomalies[] = sprintf('Vendeur : donnée invalide chargée sans validation — %s', $e->getMessage());
+            $seller = new Party($name, $address, $vatId, $companyId, null, $electronicAddress);
+        }
+
         $companyLegalForm = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:CompanyLegalForm");
         if ($companyLegalForm) {
             $seller->setCompanyLegalForm($companyLegalForm);
@@ -455,7 +464,7 @@ class XmlImporter
      * @param InvoiceBase $invoice
      * @param \DOMXPath   $xpath
      */
-    private static function loadBuyer(InvoiceBase $invoice, \DOMXPath $xpath): void
+    private static function loadBuyer(InvoiceBase $invoice, \DOMXPath $xpath, bool $strict, array &$anomalies): void
     {
         $basePath = '//cac:AccountingCustomerParty/cac:Party';
 
@@ -494,7 +503,15 @@ class XmlImporter
             }
         }
 
-        $buyer = new Party($name, $address, $vatId, $companyId, $email, $electronicAddress);
+        try {
+            $buyer = new Party($name, $address, $vatId, $companyId, $email, $electronicAddress);
+        } catch (\InvalidArgumentException $e) {
+            if ($strict) {
+                throw $e;
+            }
+            $anomalies[] = sprintf('Acheteur : donnée invalide chargée sans validation — %s', $e->getMessage());
+            $buyer = new Party($name, $address, $vatId, $companyId, null, $electronicAddress);
+        }
         $invoice->setBuyer($buyer);
     }
 
