@@ -114,7 +114,8 @@ final class InvoiceConstants
         '0195' => 'Registre de Commerce et des Sociétés (Luxembourg)',
         '0196' => 'Icelandic VAT number',
         '9925' => 'Numéro TVA (prefixé par code pays)',
-        '9956' => 'Belgian Crossroad Bank of Enterprises'
+        '9956' => 'Belgian Crossroad Bank of Enterprises',
+        '9938' => 'Numéro de TVA Luxembourgeois'
     ];
     
     /**
