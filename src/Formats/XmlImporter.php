@@ -429,7 +429,10 @@ class XmlImporter
             try {
                 $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
             } catch (\Exception $e) {
-                // Schéma non reconnu — on ignore l'adresse électronique
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('Adresse électronique invalide ignorée — %s', $e->getMessage());
             }
         }
 
@@ -445,7 +448,14 @@ class XmlImporter
 
         $companyLegalForm = self::getXPathValue($xpath, "{$basePath}/cac:PartyLegalEntity/cbc:CompanyLegalForm");
         if ($companyLegalForm) {
-            $seller->setCompanyLegalForm($companyLegalForm);
+            try {
+                $seller->setCompanyLegalForm($companyLegalForm);
+            } catch (\InvalidArgumentException $e) {
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('Vendeur : forme juridique invalide ignorée — %s', $e->getMessage());
+            }
         }
         $invoice->setSeller($seller);
     }
@@ -499,7 +509,10 @@ class XmlImporter
             try {
                 $electronicAddress = new ElectronicAddress($schemeId, $endpointId);
             } catch (\Exception $e) {
-                // Schéma non reconnu — on ignore l'adresse électronique
+                if ($strict) {
+                    throw $e;
+                }
+                $anomalies[] = sprintf('Adresse électronique invalide ignorée — %s', $e->getMessage());
             }
         }
 
