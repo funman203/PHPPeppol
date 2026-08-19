@@ -35,7 +35,8 @@
             "Peppol\\": "src/"
         },
         "files": [
-            "src/PeppolInvoice.php"
+            "src/PeppolInvoice.php",
+            "src/PeppolCreditNote.php"
         ]
     },
     "autoload-dev": {

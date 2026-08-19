@@ -24,6 +24,25 @@ class XmlExporter
     private string $customizationId;
     private string $profileId;
 
+    // =========================================================================
+    // Noms d'éléments UBL — surchargeables par sous-classe (ex: CreditNoteXmlExporter)
+    // =========================================================================
+
+    /** @var string Élément racine du document (ex: 'Invoice', 'CreditNote') */
+    protected string $rootElementName = 'Invoice';
+
+    /** @var string Namespace de l'élément racine */
+    protected string $rootNamespaceUri = 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2';
+
+    /** @var string Nom de l'élément cbc:XxxTypeCode (BT-3) */
+    protected string $documentTypeCodeElementName = 'cbc:InvoiceTypeCode';
+
+    /** @var string Nom de l'élément de ligne cac:XxxLine */
+    protected string $lineElementName = 'cac:InvoiceLine';
+
+    /** @var string Nom de l'élément de quantité cbc:XxxQuantity */
+    protected string $quantityElementName = 'cbc:InvoicedQuantity';
+
     public function __construct(
         InvoiceBase $invoice,
         ?string $customizationId = null,
@@ -59,8 +78,8 @@ class XmlExporter
         $xml->formatOutput = true;
 
         $invoice = $xml->createElementNS(
-            'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
-            'Invoice'
+            $this->rootNamespaceUri,
+            $this->rootElementName
         );
         $invoice->setAttributeNS(
             'http://www.w3.org/2000/xmlns/',
@@ -108,7 +127,7 @@ class XmlExporter
             $this->addElement($xml, $invoice, 'cbc:DueDate', $this->invoice->getDueDate());
         }
 
-        $this->addElement($xml, $invoice, 'cbc:InvoiceTypeCode', $this->invoice->getInvoiceTypeCode());
+        $this->addElement($xml, $invoice, $this->documentTypeCodeElementName, $this->invoice->getInvoiceTypeCode());
 
         // BT-22 — Note de facture
         if ($this->invoice->getInvoiceNote()) {
@@ -706,7 +725,7 @@ class XmlExporter
         foreach ($this->invoice->getInvoiceLines() as $line) {
             $invoiceLine = $xml->createElementNS(
                 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                'cac:InvoiceLine'
+                $this->lineElementName
             );
 
             $this->addElement($xml, $invoiceLine, 'cbc:ID', $line->getId());
@@ -754,7 +773,7 @@ class XmlExporter
 
             $quantity = $xml->createElementNS(
                 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
-                'cbc:InvoicedQuantity',
+                $this->quantityElementName,
                 (string) $line->getQuantity()
             );
             $quantity->setAttribute('unitCode', $line->getUnitCode());
