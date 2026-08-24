@@ -95,9 +95,11 @@ class XmlExporter
 
         $this->addDocumentHeader($xml, $invoice);
         $this->addInvoicePeriod($xml, $invoice);
+        $this->addOrderReference($xml, $invoice);
         $this->addPrecedingInvoiceReference($xml, $invoice);
         $this->addReferences($xml, $invoice);
         $this->addAttachedDocuments($xml, $invoice);
+        $this->addProjectReference($xml, $invoice);
         $this->addSellerParty($xml, $invoice);
         $this->addBuyerParty($xml, $invoice);
         $this->addDelivery($xml, $invoice);
@@ -200,28 +202,60 @@ class XmlExporter
     // Références (BT-11 … BT-16)
     // =========================================================================
 
-    private function addReferences(\DOMDocument $xml, \DOMElement $invoice): void
+    // =========================================================================
+    // BT-13 / BT-14 — OrderReference
+    // =========================================================================
+    // Doit précéder cac:BillingReference dans la séquence UBL (avant addPrecedingInvoiceReference)
+
+    private function addOrderReference(\DOMDocument $xml, \DOMElement $invoice): void
     {
-        // BT-13 / BT-14 — OrderReference
-        if ($this->invoice->getPurchaseOrderReference() !== null || $this->invoice->getSalesOrderReference() !== null) {
-            $orderRef = $xml->createElementNS(
-                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                'cac:OrderReference'
-            );
-            // cbc:ID est obligatoire dans cac:OrderReference (BR-42)
-            // Si BT-13 absent mais BT-14 présent, on utilise "NA" comme sentinelle
-            $this->addElement(
-                $xml,
-                $orderRef,
-                'cbc:ID',
-                $this->invoice->getPurchaseOrderReference() ?? 'NA'
-            );
-            if ($this->invoice->getSalesOrderReference()) {
-                $this->addElement($xml, $orderRef, 'cbc:SalesOrderID', $this->invoice->getSalesOrderReference());
-            }
-            $invoice->appendChild($orderRef);
+        if ($this->invoice->getPurchaseOrderReference() === null && $this->invoice->getSalesOrderReference() === null) {
+            return;
         }
 
+        $orderRef = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:OrderReference'
+        );
+        // cbc:ID est obligatoire dans cac:OrderReference (BR-42)
+        // Si BT-13 absent mais BT-14 présent, on utilise "NA" comme sentinelle
+        $this->addElement(
+            $xml,
+            $orderRef,
+            'cbc:ID',
+            $this->invoice->getPurchaseOrderReference() ?? 'NA'
+        );
+        if ($this->invoice->getSalesOrderReference()) {
+            $this->addElement($xml, $orderRef, 'cbc:SalesOrderID', $this->invoice->getSalesOrderReference());
+        }
+        $invoice->appendChild($orderRef);
+    }
+
+    // =========================================================================
+    // BT-11 — ProjectReference
+    // =========================================================================
+    // Doit suivre cac:AdditionalDocumentReference dans la séquence UBL (après addAttachedDocuments)
+
+    private function addProjectReference(\DOMDocument $xml, \DOMElement $invoice): void
+    {
+        if ($this->invoice->getProjectReference() === null) {
+            return;
+        }
+
+        $projRef = $xml->createElementNS(
+            'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+            'cac:ProjectReference'
+        );
+        $this->addElement($xml, $projRef, 'cbc:ID', $this->invoice->getProjectReference());
+        $invoice->appendChild($projRef);
+    }
+
+    // =========================================================================
+    // Références (BT-15, BT-16, BT-12)
+    // =========================================================================
+
+    private function addReferences(\DOMDocument $xml, \DOMElement $invoice): void
+    {
         // BT-16 — DespatchDocumentReference
         if ($this->invoice->getDespatchAdviceReference()) {
             $ref = $xml->createElementNS(
@@ -250,16 +284,6 @@ class XmlExporter
             );
             $this->addElement($xml, $contractRef, 'cbc:ID', $this->invoice->getContractReference());
             $invoice->appendChild($contractRef);
-        }
-
-        // BT-11 — ProjectReference
-        if ($this->invoice->getProjectReference()) {
-            $projRef = $xml->createElementNS(
-                'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-                'cac:ProjectReference'
-            );
-            $this->addElement($xml, $projRef, 'cbc:ID', $this->invoice->getProjectReference());
-            $invoice->appendChild($projRef);
         }
     }
 
